@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Blind Poker Lab</string>
+    <string name="quit_question">Quitter Blind Poker Lab ?\nLe tournoi en cours reste enregistré.</string>
+    <string name="quit_yes">Quitter</string>
+    <string name="quit_no">Rester</string>
+</resources>

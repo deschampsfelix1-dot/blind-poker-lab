@@ -1,0 +1,85 @@
+plugins {
+    id "com.android.application"
+}
+
+// Numéro de version : donné par GitHub (une construction = un numéro), ou 1 sur un ordinateur.
+def buildNumber = (System.getenv("VERSION_CODE") ?: "1").toInteger()
+
+android {
+    namespace "io.github.deschampsfelix.blindpokerlab"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "io.github.deschampsfelix.blindpokerlab"
+        minSdk 24
+        targetSdk 36
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    // Signature pour le Play Store : uniquement si la clé d'envoi est fournie (secrets GitHub).
+    def keystorePath = System.getenv("UPLOAD_KEYSTORE_PATH")
+    signingConfigs {
+        if (keystorePath) {
+            upload {
+                storeFile file(keystorePath)
+                storePassword System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystorePath) signingConfig signingConfigs.upload
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.assets.srcDirs += layout.buildDirectory.dir("generated/web-assets")
+    }
+}
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.14.0"
+}
+
+// Copie le site (index.html à la racine du dépôt) dans l'appli, adapté pour fonctionner sans Internet :
+// polices embarquées, pas de service worker, et le petit pont vers les fonctions d'Android.
+def siteDir = rootProject.projectDir.parentFile
+def webOut = layout.buildDirectory.dir("generated/web-assets/www")
+
+tasks.register("syncWebAssets") {
+    inputs.file(new File(siteDir, "index.html"))
+    inputs.dir("src/main/web-extra")
+    outputs.dir(webOut)
+    doLast {
+        def out = webOut.get().asFile
+        project.delete(out)
+        out.mkdirs()
+        def html = new File(siteDir, "index.html").getText("UTF-8")
+        def fontLinks = ~/(?m)^\s*<link[^>]+fonts\.(googleapis|gstatic)\.com[^>]*>\s*$\n?/
+        if (!(html =~ fontLinks).find()) throw new GradleException("Lien Google Fonts introuvable dans index.html")
+        html = html.replaceAll(fontLinks, "")
+        html = html.replaceFirst(/(?m)^.*serviceWorker\.register.*$\n?/, "")
+        html = html.replaceFirst("<head>", "<head>\n<script src=\"android-bridge.js\"></script>\n<link rel=\"stylesheet\" href=\"fonts/fonts.css\">")
+        new File(out, "index.html").write(html, "UTF-8")
+        project.copy {
+            from siteDir
+            include "*.png", "manifest.webmanifest"
+            into out
+        }
+        project.copy {
+            from "src/main/web-extra"
+            into out
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn "syncWebAssets" }
