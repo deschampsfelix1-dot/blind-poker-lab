@@ -20,6 +20,15 @@ android {
     // Signature pour le Play Store : uniquement si la clé d'envoi est fournie (secrets GitHub).
     def keystorePath = System.getenv("UPLOAD_KEYSTORE_PATH")
     signingConfigs {
+        // Clé fixe (publique, sans valeur) pour l'appli de test : chaque nouvelle version
+        // s'installe par-dessus l'ancienne sans rien effacer. Le Play Store, lui, utilise la clé d'envoi.
+        test {
+            storeFile file("cle-test.p12")
+            storeType "pkcs12"
+            storePassword "blindpokerlab-test"
+            keyAlias "test"
+            keyPassword "blindpokerlab-test"
+        }
         if (keystorePath) {
             upload {
                 storeFile file(keystorePath)
@@ -31,6 +40,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.test
+        }
         release {
             minifyEnabled false
             if (keystorePath) signingConfig signingConfigs.upload

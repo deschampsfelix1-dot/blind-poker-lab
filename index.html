@@ -35,6 +35,17 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
 header.top .wrap { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding-block: 10px; }
 .brand { font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); line-height: 1; text-decoration: none; }
 .brand-txt { display: block; }
+.syncbtn { order: 9; margin-left: auto; position: relative; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.syncbtn i { position: absolute; right: 6px; bottom: 7px; width: 9px; height: 9px; border-radius: 50%; background: var(--muted); box-shadow: 0 0 0 2px var(--surface); }
+.syncbtn[data-state="ok"] { color: var(--ink); } .syncbtn[data-state="ok"] i { background: #7be0a6; }
+.syncbtn[data-state="sync"] i { background: #ffd166; } .syncbtn[data-state="offline"] i { background: #ff9e6b; } .syncbtn[data-state="error"] i { background: #ff4d6d; }
+.syncbtn:hover { border-color: var(--felt); color: var(--felt); }
+#sync-dlg { width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); padding: 18px; }
+#sync-dlg::backdrop { background: rgba(0, 0, 0, .7); }
+#sync-dlg p { margin: 0 0 10px; } .sync-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; } .sync-head h3 { margin: 0; font: 800 22px var(--display); text-transform: uppercase; }
+.sync-row { display: flex; gap: 8px; margin-bottom: 8px; } .sync-row input { text-transform: uppercase; letter-spacing: .08em; }
+.sync-code { font: 800 clamp(24px, 7vw, 34px) var(--display); letter-spacing: .08em; color: var(--brass); text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; margin: 0 0 12px; user-select: all; }
+.sync-st[data-state="ok"] { color: #7be0a6; } .sync-st[data-state="offline"], .sync-st[data-state="error"] { color: var(--warn); }
 .brand-txt > span { color: var(--felt); text-shadow: var(--glow); }
 .brand small { display: block; font-family: var(--body); font-weight: 500; font-size: 11px; letter-spacing: .08em; color: var(--muted); }
 .spacer { flex: 1 }
@@ -511,6 +522,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
 .dash.fs .box.rot { display: flex; flex-direction: column; -webkit-mask-image: none !important; mask-image: none !important; }
 .dash.fs .box.rot #c-table { flex: 1; min-height: 0; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 85%, transparent); mask-image: linear-gradient(180deg, #000 85%, transparent); }
 .dash.fs .box.rot .rotdots { margin-top: 1vh; }
+#c-table { cursor: pointer; }
 .dash.fs .box { -webkit-mask-image: linear-gradient(180deg, #000 88%, transparent); mask-image: linear-gradient(180deg, #000 88%, transparent); }
 .dash.fs .rotdots button { width: 1.3vh; height: 1.3vh; }
 .dash.fs .shot-k { font-size: 3vh; }
@@ -552,6 +564,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
     <a href="#accueil" id="nav-accueil">Tournois</a>
     <a href="#joueurs" id="nav-joueurs">Joueurs</a>
   </nav>
+  <button class="syncbtn" id="sync-btn" type="button" data-state="off"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z"/></svg><i></i></button>
   <input id="tname" type="text" aria-label="Nom du tournoi" hidden>
   <nav class="tabs" role="tablist" id="ttabs" hidden>
     <button role="tab" data-tab="horloge" id="tab-horloge">Horloge</button>
@@ -563,6 +576,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
 
 <main class="wrap">
   <div id="storenote"></div>
+  <dialog id="sync-dlg" aria-labelledby="sync-title"><div class="sync-head"><h3 id="sync-title">Mémoire commune</h3><button class="btn ghost small" id="sync-close">Fermer</button></div><div id="sync-body"></div></dialog>
   <p id="loading" class="hint">Chargement de tes tournois…</p>
 
   <div class="seat-toast" id="seat-toast" hidden role="status"></div>
@@ -881,6 +895,7 @@ function normalize(t) {
 const Store = {
   mode: "local", db: null, assets: null, ready: false, note: "", T: {}, P: {}, X: {}, pend: {}, busy: {}, timers: {}, onChange: () => {},
   async init() {
+    if (Cloud.code()) { this.mode = "local"; this.loadLocal(); this.ready = true; this.onChange("all"); Cloud.start(); return; }
     const c = window.claude;
     if (c && typeof c.use === "function") { try { this.db = await c.use("db"); } catch (e) { this.db = null; } }
     if (!this.db) { this.mode = "local"; this.loadLocal(); this.ready = true; this.onChange("all"); return; }
@@ -904,7 +919,7 @@ const Store = {
     const key = { tournaments: "T", players: "P", settings: "X" }[col];
     const data = clone(obj); this[key][id] = data;
     clearTimeout(this.timers[id]);
-    if (this.mode === "local") { this.timers[id] = setTimeout(() => this.saveLocal(), delay || 0); return; }
+    if (this.mode === "local") { Cloud.queue(col, id, data, delay); this.timers[id] = setTimeout(() => this.saveLocal(), delay || 0); return; }
     this.pend[id] = { col, data };
     this.timers[id] = setTimeout(() => this.flush(id), delay || 0);
   },
@@ -924,10 +939,117 @@ const Store = {
   async del(col, id) {
     const key = { tournaments: "T", players: "P", settings: "X" }[col];
     delete this[key][id]; delete this.pend[id]; clearTimeout(this.timers[id]);
-    if (this.mode === "local") { this.saveLocal(); return; }
+    if (this.mode === "local") { this.saveLocal(); Cloud.queue(col, id, null); return; }
     try { await this.db.collection(col).doc(id).delete(); } catch (e) { this.note = "Suppression refusée."; this.onChange("all"); }
   }
 };
+/* ================= Mémoire commune (Supabase) =================
+   Un « code de club » relie tous les appareils : appli Android, site, Claude. Chaque appareil garde une copie locale
+   (marche sans Internet), envoie ses changements (file d'attente gardée en mémoire) et récupère ceux des autres toutes les 5 s.
+   La base n'est jamais lue directement : seules les fonctions bpl_pull / bpl_push, qui demandent le code, y ont accès. */
+const Cloud = {
+  URL: "https://uluwjjhrqgjvogaoejja.supabase.co", KEY: "sb_publishable_a_pSDcQVPq87Byz8NKRL1w_9UcIJ1lX",
+  state: "off", lastOk: 0, err: "", timer: null, busy: false, out: null, cols: { tournaments: "T", players: "P", settings: "X" },
+  ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} return null; },
+  code() { return this._code !== undefined ? this._code : (this._code = this.ls("bpl-club") || ""); },
+  since() { return Number(this.ls("bpl-since") || 0); },
+  outbox() { if (!this.out) { try { this.out = JSON.parse(this.ls("bpl-outbox") || "{}"); } catch (e) { this.out = {}; } } return this.out; },
+  saveOut() { this.ls("bpl-outbox", JSON.stringify(this.outbox())); },
+  set(state, err) { this.state = state; this.err = err || ""; if (state === "ok") this.lastOk = Date.now(); renderSync(); },
+  async rpc(fn, body) {
+    const r = await fetch(this.URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { "Content-Type": "application/json", apikey: this.KEY }, body: JSON.stringify(body) });
+    if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch (e) {} const e = new Error(m || ("HTTP " + r.status)); e.status = r.status; throw e; }
+    return r.json();
+  },
+  queue(col, id, data, delay) {
+    if (!this.code()) return;
+    this.outbox()[col + "/" + id] = { col, id, data: data == null ? null : data, deleted: data == null };
+    this.saveOut(); clearTimeout(this._q); this._q = setTimeout(() => this.sync(), Math.max(400, delay || 0));
+  },
+  start() { this.set("sync"); this.sync(); clearInterval(this.timer); this.timer = setInterval(() => { if (document.visibilityState === "visible") this.sync(); }, 5000); },
+  stop() { clearInterval(this.timer); this.timer = null; this.set("off"); },
+  async sync() {
+    const code = this.code(); if (!code || this.busy) return;
+    this.busy = true;
+    try {
+      // 1. envoyer ce qui attend
+      const box = this.outbox(), keys = Object.keys(box);
+      for (let i = 0; i < keys.length; i += 40) {
+        const part = keys.slice(i, i + 40), sent = part.map(k => box[k]);
+        await this.rpc("bpl_push", { p_code: code, p_docs: sent });
+        part.forEach((k, j) => { if (this.outbox()[k] === sent[j]) delete this.outbox()[k]; }); // gardé s'il a changé entre-temps
+        this.saveOut();
+      }
+      // 2. récupérer les changements des autres appareils
+      let since = this.since(), changed = {};
+      for (let guard = 0; guard < 50; guard++) {
+        const rows = await this.rpc("bpl_pull", { p_code: code, p_since: since });
+        if (!rows.length) break;
+        rows.forEach(r => {
+          since = Math.max(since, Number(r.rev));
+          if (this.outbox()[r.col + "/" + r.id]) return; // un changement local plus récent attend d'être envoyé
+          const key = this.cols[r.col]; if (!key) return;
+          if (r.deleted) { if (Store[key][r.id]) { delete Store[key][r.id]; changed[r.col] = 1; } return; }
+          if (JSON.stringify(Store[key][r.id]) !== JSON.stringify(r.data)) { Store[key][r.id] = r.data; changed[r.col] = 1; }
+        });
+        if (rows.length < 500) break;
+      }
+      this.ls("bpl-since", String(since));
+      const cs = Object.keys(changed);
+      if (cs.length) { Store.saveLocal(); cs.forEach(c => Store.onChange(c)); }
+      this.set(Object.keys(this.outbox()).length ? "sync" : "ok");
+    } catch (e) {
+      if (e.status === 400 || e.status === 403) this.set("error", e.message); else this.set("offline");
+    } finally { this.busy = false; }
+  },
+  // relie cet appareil à un club : tout ce qu'il contient déjà est envoyé, rien n'est effacé
+  async connect(code) {
+    code = normCode(code); if (!code) return false;
+    if (Store.mode === "db") { // version Claude : on reprend ses données (photos comprises) avant de passer à la mémoire commune
+      for (const p of Object.values(Store.P)) {
+        if (p && p.photo && !p.photoData) { try { const b = await (await fetch("/_blob/" + p.photo)).blob(); p.photoData = await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); }); delete p.photo; } catch (e) {} }
+      }
+      Store.mode = "local"; Store.assets = null; Store.saveLocal();
+    }
+    this._code = code; this.ls("bpl-club", code); this.ls("bpl-since", "0");
+    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false }; }));
+    this.saveOut(); this.start(); return true;
+  },
+  disconnect() { this.stop(); this._code = ""; this.ls("bpl-club", null); this.ls("bpl-since", null); this.out = {}; this.saveOut(); renderSync(); }
+};
+const CODE_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newClubCode() { const a = new Uint32Array(9); crypto.getRandomValues(a); const c = [...a].map(x => CODE_ABC[x % CODE_ABC.length]).join(""); return `MRX-${c.slice(0, 3)}-${c.slice(3, 6)}-${c.slice(6)}`; }
+function normCode(v) { const c = String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (c.length < 10) return ""; const b = c.startsWith("MRX") ? c.slice(3) : c; return "MRX-" + (b.match(/.{1,3}/g) || []).join("-"); }
+function renderSync() {
+  const b = document.getElementById("sync-btn"); if (!b) return;
+  const st = Cloud.code() ? Cloud.state : "off";
+  const lab = { off: "Mémoire commune : désactivée", ok: "Synchronisé", sync: "Synchronisation…", offline: "Hors connexion : les changements partiront au retour d'Internet", error: "Code refusé" }[st] || "";
+  b.dataset.state = st; b.title = lab; b.setAttribute("aria-label", lab);
+  const d = document.getElementById("sync-dlg"); if (d && d.open) renderSyncDlg();
+}
+function renderSyncDlg() {
+  const body = $("sync-body"), code = Cloud.code();
+  if (!code) {
+    body.innerHTML = `<p>Relie cet appareil à ton club : la tablette, le site et Claude partageront alors les mêmes joueurs, tournois et classements.</p>
+      <button class="btn" id="sync-new">Créer un code de club</button>
+      <p class="hint" style="margin-top:14px">Tu as déjà un code sur un autre appareil ? Saisis-le ici :</p>
+      <div class="sync-row"><input type="text" id="sync-in" placeholder="MRX-XXX-XXX-XXX" autocomplete="off" autocapitalize="characters" spellcheck="false"><button class="btn" id="sync-go">Relier</button></div>
+      <p class="hint">Ce qui se trouve déjà sur cet appareil est ajouté au club, rien n'est effacé.</p>`;
+    $("sync-new").addEventListener("click", () => Cloud.connect(newClubCode()).then(renderSync));
+    $("sync-go").addEventListener("click", async () => { if (!(await Cloud.connect($("sync-in").value))) { $("sync-in").setCustomValidity("Code incomplet"); $("sync-in").reportValidity(); } else renderSync(); });
+  } else {
+    const st = { ok: "✓ Tout est synchronisé", sync: "⟳ Synchronisation en cours…", offline: "○ Hors connexion : les changements partiront dès le retour d'Internet", error: "⚠ Le serveur refuse ce code : " + esc(Cloud.err) }[Cloud.state] || "";
+    const n = Object.keys(Cloud.outbox()).length;
+    body.innerHTML = `<p>Code de ton club, à saisir sur tes autres appareils :</p><div class="sync-code">${esc(code)}</div>
+      <p class="sync-st" data-state="${Cloud.state}">${st}${n ? ` (${n} changement${n > 1 ? "s" : ""} en attente)` : ""}</p>
+      <p class="hint">Garde ce code pour toi : toute personne qui l'a peut voir et modifier tes tournois.</p>
+      <div class="btns"><button class="btn ghost" id="sync-copy">Copier le code</button><button class="btn danger" id="sync-off">Délier cet appareil</button></div>`;
+    $("sync-copy").addEventListener("click", () => { try { navigator.clipboard.writeText(code); $("sync-copy").textContent = "Copié"; } catch (e) {} });
+    $("sync-off").addEventListener("click", () => { if (confirm("Délier cet appareil ? Ses données restent sur l'appareil, mais ne seront plus partagées.")) Cloud.disconnect(); });
+  }
+}
+window.addEventListener("online", () => Cloud.sync());
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Cloud.sync(); });
 const photoSrc = p => p ? (p.photo ? "/_blob/" + p.photo : (p.photoData || null)) : null;
 function avatar(p, cls = "", out = false) {
   const src = photoSrc(p), letter = esc(((p && p.pseudo) || "?").slice(0, 1).toUpperCase());
@@ -2079,6 +2201,8 @@ function bindClock() {
   $("c-time").addEventListener("click", startShot);
   $("shot-restart").addEventListener("click", startShot);
   $("c-seat").addEventListener("click", () => openDraw(false));
+  // toucher la case « À la table » du tableau de bord rouvre les tables : chaque joueur y est cliquable (recave, add-on, élimination…)
+  $("c-table").addEventListener("click", () => { if (S && S.seating) openDraw(false); });
   $("c-allin").addEventListener("click", allIn);
   $("jumbo").addEventListener("click", closeJumbo);
   if ("speechSynthesis" in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices(); } catch (e) {} }
@@ -2540,6 +2664,9 @@ $("p-search").addEventListener("input", () => renderJoueurs());
 $("t-search").addEventListener("input", () => renderAccueil());
 $("t-filter").addEventListener("input", () => renderAccueil());
 try { tab = sessionStorage.getItem("croupier-tab") || "horloge"; } catch (e) {}
+$("sync-btn").addEventListener("click", () => { renderSyncDlg(); $("sync-dlg").showModal(); });
+$("sync-close").addEventListener("click", () => $("sync-dlg").close());
+renderSync();
 route();
 Store.init();
 setInterval(tick, 250);
