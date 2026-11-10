@@ -291,6 +291,23 @@ svg.chipsvg { display: block; flex: none; overflow: visible; }
 .seat.sb .av { box-shadow: 0 0 0 3px #c45cff; }
 .seat.d .av { box-shadow: 0 0 0 3px #ffffff; }
 @keyframes seatin { from { opacity: 0; transform: translate(-50%, -50%) scale(.6); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+/* cartes du tirage */
+.pcard { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 7.4cqw; height: 10.4cqw; min-width: 26px; min-height: 36px; border-radius: 1cqw; background: #fff; color: #111;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .6), 0 0 0 1px rgba(0, 0, 0, .25); display: grid; place-content: center; justify-items: center; line-height: 1; transition: left .45s cubic-bezier(.2, .8, .3, 1), top .45s cubic-bezier(.2, .8, .3, 1); pointer-events: none; }
+.pcard b { font: 800 clamp(11px, 3.4cqw, 30px) var(--display); }
+.pcard i { font-style: normal; font-size: clamp(11px, 3.4cqw, 30px); }
+.pcard.red { color: #d6243f; }
+.pcard.back { background: repeating-linear-gradient(45deg, #7012b8 0 4px, #a92cf0 4px 8px); box-shadow: 0 2px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px #fff; }
+.pcard.back b, .pcard.back i { visibility: hidden; }
+.pcard.hide { visibility: hidden; }
+.pcard.flip { animation: cflip .3s ease-in-out; }
+@keyframes cflip { 50% { transform: translate(-50%, -50%) scaleX(0); } }
+.pdeck { position: absolute; left: 50%; top: 50%; z-index: 1; width: 7.4cqw; height: 10.4cqw; min-width: 26px; min-height: 36px; transform: translate(-50%, -50%); pointer-events: none; }
+.pdeck span { position: absolute; inset: 0; border-radius: 1cqw; background: repeating-linear-gradient(45deg, #7012b8 0 4px, #a92cf0 4px 8px); box-shadow: 0 2px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px #fff; }
+.pdeck span:nth-child(2) { transform: translate(-2px, -2px); } .pdeck span:nth-child(3) { transform: translate(-4px, -4px); }
+.ptables.dealing .seat .pos, .ptables.dealing .seat .no, .ptables.dealing .roles, .ptables.dealing .rotbtn, .ptables.dealing .felt-in { visibility: hidden; }
+.ptables.dealing .ptable { cursor: pointer; }
+.ptables.dealing .seat .av { box-shadow: 0 0 0 2px var(--line); }
 .ptab .roles { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: 14px; color: var(--muted); }
 .ptab .roles b { color: var(--ink); }
 .ptab .roles i { font-style: normal; display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 999px; font: 800 12px var(--display); margin-right: 4px; }
@@ -440,6 +457,9 @@ svg.chipsvg { display: block; flex: none; overflow: visible; }
 @media (max-width: 1100px) { .d-main { grid-column: 1 / -1; order: -1; } .d-left, .d-right, .box { grid-column: span 6; } }
 @media (max-width: 640px) { .dash .cell { grid-column: 1 / -1; } .d-right { grid-template-rows: none; grid-template-columns: 1fr 1fr; } .d-blind + .d-blind { border-top: none; border-left: 1px solid var(--line); } }
 #clockbox:fullscreen { border-radius: 0; overflow: auto; align-content: stretch; }
+/* plein écran de secours (appli Android, navigateurs sans API plein écran) : par-dessus tout, bandeau compris */
+.dash.clock-full { position: fixed; inset: 0; z-index: 50; margin: 0; width: auto; max-width: none; }
+body:has(.dash.clock-full) { overflow: hidden; }
 /* plein écran : tout est dimensionné sur la hauteur de l'écran pour être lisible de loin */
 .dash.fs { height: 100vh; height: 100dvh; grid-template-rows: minmax(0, 60fr) minmax(0, 40fr); border: none; border-radius: 0; overflow: hidden; }
 .dash.fs .cell { padding: 1.6vh 1.4vw; overflow: hidden; }
@@ -497,7 +517,30 @@ svg.chipsvg { display: block; flex: none; overflow: visible; }
 .dash.fs .shot-n { font-size: min(45vh, 30vw); }
 .dash.fs .shot .bar { height: 1.4vh; width: 70vw; }
 .dash.fs .shot .btn { font-size: 2.4vh; padding: 1.4vh 3vh; }
-@media (max-aspect-ratio: 1/1) { .dash.fs { height: auto; min-height: 100vh; grid-template-rows: none; overflow: auto; } .dash.fs .cell { overflow: visible; } }
+/* plein écran : la disposition ne dépend que de l'orientation, jamais de la largeur (tablettes de 1024 px et moins comprises) */
+.dash.fs .d-left { grid-column: span 3; } .dash.fs .d-main { grid-column: span 6; order: 0; } .dash.fs .d-right { grid-column: span 3; grid-template-columns: none; grid-template-rows: 1fr 1fr; }
+.dash.fs .box { grid-column: span 3; display: flex; flex-direction: column; min-height: 0; }
+.dash.fs .d-blind + .d-blind { border-left: none; border-top: 1px solid var(--line); }
+/* jetons : leur taille est calculée pour qu'ils tiennent tous dans la case (voir fitChips) */
+.dash.fs .chipgrid { flex: 1; min-height: 0; grid-template-columns: repeat(var(--chip-cols, 3), var(--chip, 10vh)); gap: var(--chip-gap, 1.2vh); justify-content: center; align-content: center; }
+.dash.fs .chipgrid svg { width: var(--chip, 10vh); height: var(--chip, 10vh); }
+@media (orientation: portrait) {
+  .dash.fs { grid-template-rows: minmax(0, 37fr) minmax(0, 19fr) minmax(0, 22fr) minmax(0, 22fr); }
+  .dash.fs .d-main { grid-column: 1 / -1; order: -1; }
+  .dash.fs .d-left { grid-column: span 6; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 3vw; text-align: center; }
+  .dash.fs .d-left .d-logo { grid-row: 1 / span 6; max-width: 15vh; width: 22vw; margin: 0; }
+  .dash.fs .d-right { grid-column: span 6; }
+  .dash.fs .box { grid-column: span 6; }
+  .dash.fs .cell { padding: 1.4vh 2.4vw; }
+  .dash.fs .d-title { font-size: 2.4vw; } .dash.fs .d-k { font-size: 1.9vw; margin-top: .5vh; } .dash.fs .d-v { font-size: 6vw; } .dash.fs .d-v.sm { font-size: 3.8vw; } .dash.fs .d-left .hint { font-size: 1.9vw; }
+  .dash.fs .box h4 { font-size: 2.2vw; margin-bottom: .8vh; } .dash.fs .prize-row b { font-size: 3.4vw; } .dash.fs .prize-row { font-size: 2.2vw; } .dash.fs #c-upcoming .up-bl { font-size: 3.4vw; } .dash.fs #c-upcoming td { font-size: 2vw; }
+  .dash.fs .d-top { font-size: 2.2vw; flex-wrap: nowrap; } .dash.fs .d-top b { font-size: 3.6vw; } .dash.fs .d-top .lvl { font-size: 3vw; }
+  .dash.fs .timer { font-size: min(15vh, 25vw); }
+  .dash.fs .d-blind { padding: .4vh 1vw; } .dash.fs .d-blind span { font-size: 2vw; } .dash.fs .d-blind b { font-size: min(6.4vh, 12vw); }
+  .dash.fs .ctl .btn { height: 5.5vh; font-size: 2vh; } .dash.fs .playbtn { width: 9vh; } .dash.fs .iconbtn { width: 5vh; height: 5vh; }
+  .dash.fs .timebtn { font-size: 3.2vh; margin: 1vh auto .4vh; padding: 1vh 4vh 1.1vh 5vh; }
+  .dash.fs .seatbtn { width: 5vh; height: 5vh; } .dash.fs .seatbtn svg { width: 3.2vh; height: 3.2vh; }
+}
 
 .pay td:last-child, .pay th:last-child { text-align: right; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important } }
@@ -1356,6 +1399,17 @@ function tone(f, start, dur, type = "sine", vol = .25) {
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.05);
 }
 const SFX = {
+  // froissement d'une carte distribuée
+  card() {
+    const a = ac(); if (!a || muted) return;
+    try {
+      const len = Math.floor(a.sampleRate * .09), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+      f.type = "bandpass"; f.frequency.value = 3200; f.Q.value = .8; g.gain.value = .5;
+      src.buffer = buf; src.connect(f).connect(g).connect(a.destination); src.start();
+    } catch (e) {}
+  },
   // carillon doux deux notes : il reste une minute
   warn() { tone(659, 0, .6, "sine", .3); tone(1318, 0, .6, "sine", .07); tone(880, .22, .9, "sine", .3); tone(1760, .22, .9, "sine", .07); },
   // cliquetis des 5 dernières secondes, plus aigu sur la dernière
@@ -1398,9 +1452,22 @@ function drawSeats() {
   const pl = shuffle(seatPlayers()), per = Math.max(2, Math.min(10, S.perTable || 9)), nt = Math.ceil(pl.length / per);
   const tables = Array.from({ length: nt }, () => []);
   pl.forEach((p, i) => tables[i % nt].push(p)); // distribution en serpentin : les tables ont au plus un joueur d'écart
-  S.seating = { at: Date.now(), tables: tables.map(seats => ({ seats, dealer: rint(seats.length) })) };
+  S.seating = { at: Date.now(), cards: true, tables: tables.map(cardTable) };
+  dealAnim = S.seating.tables.map(t => t.deal); S.seating.tables.forEach(t => delete t.deal);
   save(0);
 }
+/* tirage à la carte : chaque joueur reçoit une carte d'un jeu de 52 mélangé.
+   La meilleure carte prend le bouton ; ensuite, dans le sens du jeu, les cartes vont de la plus petite (petite blinde)
+   à la plus forte : les deux plus petites sont donc petite et grosse blinde. Couleurs départagées ♣ < ♦ < ♥ < ♠. */
+const CARD_RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "V", "D", "R", "A"], CARD_SUITS = ["♣", "♦", "♥", "♠"];
+const cardRank = c => CARD_RANKS[Math.floor(c / 4)], cardSuit = c => CARD_SUITS[c % 4], cardRed = c => c % 4 === 1 || c % 4 === 2;
+function cardTable(players) {
+  const deck = shuffle(Array.from({ length: 52 }, (_, i) => i));
+  const dealt = players.map((p, i) => Object.assign({}, p, { card: deck[i] })); // ordre de distribution = ordre où ils sont assis pour le tirage
+  const seats = dealt.slice().sort((a, b) => a.card - b.card);
+  return { seats, dealer: seats.length - 1, deal: dealt.map(p => seats.indexOf(p)) };
+}
+let dealAnim = null, dealTimers = [];
 function seatSig() { return seatPlayers().map(p => p.pid || p.name).sort().join("|"); }
 /* ---------- changements de table (règles TDA) ----------
    1. un joueur éliminé libère son siège (rien à faire à la table) ;
@@ -1459,7 +1526,7 @@ function seatingPlan() {
 function applySeating(plan) {
   if (!plan) return;
   if (plan.final) { drawSeats(); S.seating.final = true; S.seating.moved = []; }
-  else { S.seating.tables = plan.T; S.seating.moved = plan.moves.map(m => ({ pid: m.pid, from: m.from })); S.seating.final = false; }
+  else { S.seating.tables = plan.T; S.seating.moved = plan.moves.map(m => ({ pid: m.pid, from: m.from })); S.seating.final = false; S.seating.cards = false; }
   save(0);
 }
 function seatAlerts() { const pl = S && seatingPlan(); return pl ? (pl.final ? 1 : pl.moves.length) : 0; }
@@ -1483,6 +1550,8 @@ function openDraw(fresh) {
 }
 function renderDraw() {
   const st = S.seating; if (!st) return;
+  dealTimers.forEach(clearTimeout); dealTimers = []; $("ptables").classList.remove("dealing");
+  const showCards = !!st.cards && st.tables.some(t => t.seats.some(p => p.card != null));
   const pl = seatingPlan(), bn = $("draw-moves");
   if (pl && pl.final) { bn.hidden = false; bn.innerHTML = `<div><b>🏆 Table finale</b><span>Tout le monde tient à une seule table : on refait un tirage des places.</span></div><button class="btn" id="mv-apply">Tirer la table finale</button>`; }
   else if (pl && pl.moves.length) { bn.hidden = false; bn.innerHTML = `<div><b>⇄ ${pl.moves.length} changement${pl.moves.length > 1 ? "s" : ""} de table</b><ul>${pl.moves.map(m => `<li>${moveText(m)}, siège ${m.pos + 1}</li>`).join("")}</ul></div><button class="btn" id="mv-apply">Faire le changement</button>`; }
@@ -1491,6 +1560,7 @@ function renderDraw() {
   const moved = {}; (st.moved || []).forEach(m => moved[m.pid] = m);
   const nT = st.tables.length, nP = st.tables.reduce((a, t) => a + t.seats.length, 0);
   $("draw-sub").textContent = `${nP} joueurs · ${nT} table${nT > 1 ? "s" : ""} · tirage du ${new Date(st.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+  if (showCards) $("draw-sub").textContent += " · touche la table pour retirer les cartes";
   $("ptables").classList.toggle("one", nT === 1);
   $("ptables").innerHTML = st.tables.map((t, ti) => {
     const n = t.seats.length, d = t.dealer % n, sb = n === 2 ? d : (d + 1) % n, bb = n === 2 ? (d + 1) % n : (d + 2) % n;
@@ -1502,7 +1572,9 @@ function renderDraw() {
       const pl = p.pid ? pOf(p.pid, S) : { pseudo: p.name };
       const mv = p.pid && moved[p.pid];
       const act = p.pid && S.status !== "done" ? ` data-sp="${esc(p.pid)}" data-st="${ti}" data-si="${i}" role="button" tabindex="0" aria-label="Actions pour ${esc(nameOf(p))}"` : ` data-st="${ti}" data-si="${i}"`;
-      return `<div class="seat ${main ? main[0] : ""}${mv ? " moved" : ""}${smState && smState.pid && smState.pid === p.pid ? " picked" : ""}"${act} style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;animation-delay:${(i * 0.06).toFixed(2)}s">${avatar(pl)}${roles.length ? `<span class="pos ${main[0]}">${roles.map(r => r[1]).join("·")}</span>` : ""}<span class="nm">${esc(nameOf(p))}</span><span class="no">${mv ? (mv.from == null ? "arrive" : "vient de la table " + (mv.from + 1)) : "siège " + (i + 1)}</span></div>`;
+      const ca = Math.PI / 2 + i * 2 * Math.PI / n, cx = 50 + 21 * Math.cos(ca), cy = 50 + 19 * Math.sin(ca);
+      const card = showCards && p.card != null ? `<span class="pcard${cardRed(p.card) ? " red" : ""}" data-ci="${i}" style="left:${cx.toFixed(2)}%;top:${cy.toFixed(2)}%" aria-label="${cardRank(p.card)} ${cardSuit(p.card)}"><b>${cardRank(p.card)}</b><i>${cardSuit(p.card)}</i></span>` : "";
+      return card + `<div class="seat ${main ? main[0] : ""}${mv ? " moved" : ""}${smState && smState.pid && smState.pid === p.pid ? " picked" : ""}"${act} style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;animation-delay:${(i * 0.06).toFixed(2)}s">${avatar(pl)}${roles.length ? `<span class="pos ${main[0]}">${roles.map(r => r[1]).join("·")}</span>` : ""}<span class="nm">${esc(nameOf(p))}</span><span class="no">${mv ? (mv.from == null ? "arrive" : "vient de la table " + (mv.from + 1)) : "siège " + (i + 1)}</span></div>`;
     }).join("");
     const role = (cls, lab, i) => `<span><i class="pos ${cls}" style="background:${cls === "d" ? "#fff" : cls === "sb" ? "#c45cff" : "#ffd166"};color:${cls === "sb" ? "#fff" : "#000"}">${lab}</i><b>${esc(nameOf(t.seats[i]))}</b></span>`;
     return `<div class="ptab"><div class="ptable"><div class="felt"><div class="felt-in"><div><b>${st.final && nT === 1 ? "Table finale" : "Table " + (ti + 1)}</b><span>${n} joueurs</span></div></div></div>${seats}
@@ -1511,6 +1583,12 @@ function renderDraw() {
       <div class="roles">${n === 2 ? role("d", "D·PB", d) : role("d", "D", d) + role("sb", "PB", sb)}${role("bb", "GB", bb)}</div></div>`;
   }).join("");
   $("ptables").querySelectorAll("[data-rt]").forEach(b => b.addEventListener("click", () => rotateTable(Number(b.dataset.rt), Number(b.dataset.dir))));
+  $("ptables").querySelectorAll(".ptable").forEach(tb => tb.addEventListener("click", e => {
+    if ($("ptables").classList.contains("dealing")) { finishDeal(); return; }
+    if (e.target.closest(".seat[data-sp]") || e.target.closest(".rotbtn") || !S.seating.cards) return;
+    S.seating.cards = false; save(0); $("ptables").classList.add("still"); renderDraw(); // les cartes disparaissent, les places restent
+  }));
+  if (dealAnim && showCards) { const d = dealAnim; dealAnim = null; playDeal(d); } else dealAnim = null;
   $("ptables").querySelectorAll(".seat[data-sp]").forEach(el => {
     const open = () => openSeatMenu(el.dataset.sp, el);
     el.addEventListener("click", open); el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
@@ -1581,6 +1659,51 @@ function seatAction(a, by) {
   }
 }
 // rotation : chaque joueur avance d'un siège ; le bouton (et donc PB et GB) reste au même joueur
+/* animation du tirage : paquet au centre, une carte distribuée à chaque joueur, cartes retournées, puis chacun rejoint sa place */
+function playDeal(order) {
+  const box = $("ptables"); box.classList.add("dealing");
+  const sub = $("draw-sub"), subTxt = sub.textContent; sub.textContent = "Distribution des cartes…";
+  const later = (ms, f) => dealTimers.push(setTimeout(f, ms));
+  let end = 0;
+  box.querySelectorAll(".ptab").forEach((tab, ti) => {
+    const ord = order[ti]; if (!ord) return;
+    const tb = tab.querySelector(".ptable"), n = ord.length;
+    const deck = document.createElement("div"); deck.className = "pdeck"; deck.innerHTML = "<span></span><span></span><span></span>"; tb.appendChild(deck);
+    const seatEl = i => tb.querySelector(`.seat[data-si="${i}"]`), cardEl = i => tb.querySelector(`.pcard[data-ci="${i}"]`);
+    // chaque joueur s'assoit d'abord dans l'ordre de distribution
+    ord.forEach((fi, k) => {
+      const se = seatEl(fi), ce = cardEl(fi); if (!se || !ce) return;
+      const a = Math.PI / 2 + k * 2 * Math.PI / n;
+      se.dataset.fx = se.style.left; se.dataset.fy = se.style.top; ce.dataset.fx = ce.style.left; ce.dataset.fy = ce.style.top;
+      se.style.transition = "none"; se.style.left = (50 + 38 * Math.cos(a)).toFixed(2) + "%"; se.style.top = (50 + 37 * Math.sin(a)).toFixed(2) + "%";
+      ce.dataset.dx = (50 + 21 * Math.cos(a)).toFixed(2) + "%"; ce.dataset.dy = (50 + 19 * Math.sin(a)).toFixed(2) + "%";
+      ce.style.transition = "none"; ce.style.left = "50%"; ce.style.top = "50%"; ce.classList.add("back", "hide");
+    });
+    const step = Math.max(160, Math.min(320, 2600 / n)), t0 = 500;
+    ord.forEach((fi, k) => later(t0 + k * step, () => {
+      const ce = cardEl(fi); if (!ce) return;
+      ce.classList.remove("hide"); ce.style.transition = ""; ce.style.left = ce.dataset.dx; ce.style.top = ce.dataset.dy; SFX.card();
+    }));
+    const tFlip = t0 + n * step + 450;
+    ord.forEach((fi, k) => later(tFlip + k * 160, () => { const ce = cardEl(fi); if (!ce) return; ce.classList.add("flip"); setTimeout(() => ce.classList.remove("back"), 150); }));
+    const tMove = tFlip + n * 160 + 1100;
+    later(tMove, () => {
+      deck.remove();
+      ord.forEach(fi => {
+        const se = seatEl(fi), ce = cardEl(fi); if (!se || !ce) return;
+        se.style.transition = "left .9s ease-in-out, top .9s ease-in-out"; se.style.left = se.dataset.fx; se.style.top = se.dataset.fy;
+        ce.style.transition = "left .9s ease-in-out, top .9s ease-in-out"; ce.style.left = ce.dataset.fx; ce.style.top = ce.dataset.fy;
+      });
+    });
+    end = Math.max(end, tMove + 1000);
+  });
+  later(end, () => finishDeal(subTxt));
+}
+function finishDeal(subTxt) {
+  dealTimers.forEach(clearTimeout); dealTimers = [];
+  const box = $("ptables"); if (!box.classList.contains("dealing")) return;
+  box.classList.add("still"); renderDraw(); // état final : chacun à sa place, sa carte devant lui, bouton et blindes affichés
+}
 function rotateTable(ti, dir) {
   const t = S.seating && S.seating.tables[ti]; if (!t || t.seats.length < 2) return;
   const n = t.seats.length;
@@ -1783,6 +1906,17 @@ function shotTick() {
 }
 setInterval(shotTick, 100);
 const SPEAKER = on => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/>${on ? '<path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>' : '<path d="M17 9l5 6M22 9l-5 6"/>'}</svg>`;
+/* plein écran : choisit le nombre de colonnes qui donne les plus gros jetons tout en les gardant tous visibles */
+function fitChips() {
+  const g = $("c-chips"); if (!g) return;
+  if (!$("clockbox").classList.contains("fs")) { g.style.removeProperty("--chip"); g.style.removeProperty("--chip-cols"); return; }
+  const n = g.children.length; if (!n) return;
+  const w = g.clientWidth, h = g.clientHeight; if (!w || !h) return;
+  const gap = Math.max(4, Math.min(w, h) * .04); let best = 0, cols = 1;
+  for (let c = 1; c <= n; c++) { const r = Math.ceil(n / c), sz = Math.min((w - gap * (c - 1)) / c, (h - gap * (r - 1)) / r); if (sz > best) { best = sz; cols = c; } }
+  g.style.setProperty("--chip", Math.floor(Math.min(best, h * .9)) + "px"); g.style.setProperty("--chip-cols", cols); g.style.setProperty("--chip-gap", Math.floor(gap) + "px");
+}
+window.addEventListener("resize", () => fitChips());
 function renderSound() { const b = $("c-sound"); b.innerHTML = SPEAKER(!muted); b.setAttribute("aria-pressed", String(!muted)); b.setAttribute("aria-label", muted ? "Activer le son" : "Couper le son"); b.title = muted ? "Son coupé" : "Son activé"; }
 document.addEventListener("pointerdown", () => { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); }, true);
 function goto(i) {
@@ -1859,7 +1993,7 @@ function renderClock() {
 
   // jetons
   const cs = JSON.stringify(S.chipSet);
-  if ($("c-chips").dataset.sig !== cs) { $("c-chips").dataset.sig = cs; $("c-chips").innerHTML = S.chipSet.map(ch => chipSVG(ch, 80)).join(""); }
+  if ($("c-chips").dataset.sig !== cs) { $("c-chips").dataset.sig = cs; $("c-chips").innerHTML = S.chipSet.map(ch => chipSVG(ch, 80)).join(""); } fitChips();
 
   // prix
   const byPlace = {}; S.entries.forEach(e => { const pl = placeOf(S, e); if (pl) byPlace[pl] = e; });
@@ -1955,7 +2089,7 @@ function bindClock() {
   $("shot-stop").addEventListener("click", stopShot);
   renderSound();
   $("c-sound").addEventListener("click", () => { muted = !muted; try { localStorage.setItem("bpl-muted", muted ? "1" : "0"); } catch (e) {} renderSound(); if (!muted) SFX.warn(); });
-  const fsSync = () => { const box = $("clockbox"); box.classList.toggle("fs", document.fullscreenElement === box || box.classList.contains("clock-full")); };
+  const fsSync = () => { const box = $("clockbox"); box.classList.toggle("fs", document.fullscreenElement === box || box.classList.contains("clock-full")); requestAnimationFrame(fitChips); };
   document.addEventListener("fullscreenchange", fsSync);
   $("c-full").addEventListener("click", () => { setTimeout(fsSync, 0);
     const box = $("clockbox");
