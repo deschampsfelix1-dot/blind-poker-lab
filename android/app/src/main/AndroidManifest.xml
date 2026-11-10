@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Pour la mémoire commune (synchronisation des joueurs et tournois entre appareils) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Pour la voix du croupier (moteur de synthèse vocale du téléphone) -->
     <queries>
         <intent>
