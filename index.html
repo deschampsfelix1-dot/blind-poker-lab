@@ -303,15 +303,15 @@ svg.chipsvg { display: block; flex: none; overflow: visible; }
 .seat.d .av { box-shadow: 0 0 0 3px #ffffff; }
 @keyframes seatin { from { opacity: 0; transform: translate(-50%, -50%) scale(.6); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 /* cartes du tirage */
-.pcard { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 7.4cqw; height: 10.4cqw; min-width: 26px; min-height: 36px; border-radius: 1cqw; background: #fff; color: #111;
+.dcard { position: absolute; z-index: 2; transform: translate(-50%, -50%); width: 7.4cqw; height: 10.4cqw; min-width: 26px; min-height: 36px; border-radius: 1cqw; background: #fff; color: #111;
   box-shadow: 0 2px 6px rgba(0, 0, 0, .6), 0 0 0 1px rgba(0, 0, 0, .25); display: grid; place-content: center; justify-items: center; line-height: 1; transition: left .45s cubic-bezier(.2, .8, .3, 1), top .45s cubic-bezier(.2, .8, .3, 1); pointer-events: none; }
-.pcard b { font: 800 clamp(11px, 3.4cqw, 30px) var(--display); }
-.pcard i { font-style: normal; font-size: clamp(11px, 3.4cqw, 30px); }
-.pcard.red { color: #d6243f; }
-.pcard.back { background: repeating-linear-gradient(45deg, #7012b8 0 4px, #a92cf0 4px 8px); box-shadow: 0 2px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px #fff; }
-.pcard.back b, .pcard.back i { visibility: hidden; }
-.pcard.hide { visibility: hidden; }
-.pcard.flip { animation: cflip .3s ease-in-out; }
+.dcard b { font: 800 clamp(11px, 3.4cqw, 30px) var(--display); }
+.dcard i { font-style: normal; font-size: clamp(11px, 3.4cqw, 30px); }
+.dcard.red { color: #d6243f; }
+.dcard.back { background: repeating-linear-gradient(45deg, #7012b8 0 4px, #a92cf0 4px 8px); box-shadow: 0 2px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px #fff; }
+.dcard.back b, .dcard.back i { visibility: hidden; }
+.dcard.hide { visibility: hidden; }
+.dcard.flip { animation: cflip .3s ease-in-out; }
 @keyframes cflip { 50% { transform: translate(-50%, -50%) scaleX(0); } }
 .pdeck { position: absolute; left: 50%; top: 50%; z-index: 1; width: 7.4cqw; height: 10.4cqw; min-width: 26px; min-height: 36px; transform: translate(-50%, -50%); pointer-events: none; }
 .pdeck span { position: absolute; inset: 0; border-radius: 1cqw; background: repeating-linear-gradient(45deg, #7012b8 0 4px, #a92cf0 4px 8px); box-shadow: 0 2px 6px rgba(0, 0, 0, .6), inset 0 0 0 2px #fff; }
@@ -1695,7 +1695,7 @@ function renderDraw() {
       const mv = p.pid && moved[p.pid];
       const act = p.pid && S.status !== "done" ? ` data-sp="${esc(p.pid)}" data-st="${ti}" data-si="${i}" role="button" tabindex="0" aria-label="Actions pour ${esc(nameOf(p))}"` : ` data-st="${ti}" data-si="${i}"`;
       const ca = Math.PI / 2 + i * 2 * Math.PI / n, cx = 50 + 21 * Math.cos(ca), cy = 50 + 19 * Math.sin(ca);
-      const card = showCards && p.card != null ? `<span class="pcard${cardRed(p.card) ? " red" : ""}" data-ci="${i}" style="left:${cx.toFixed(2)}%;top:${cy.toFixed(2)}%" aria-label="${cardRank(p.card)} ${cardSuit(p.card)}"><b>${cardRank(p.card)}</b><i>${cardSuit(p.card)}</i></span>` : "";
+      const card = showCards && p.card != null ? `<span class="dcard${cardRed(p.card) ? " red" : ""}" data-ci="${i}" style="left:${cx.toFixed(2)}%;top:${cy.toFixed(2)}%" aria-label="${cardRank(p.card)} ${cardSuit(p.card)}"><b>${cardRank(p.card)}</b><i>${cardSuit(p.card)}</i></span>` : "";
       return card + `<div class="seat ${main ? main[0] : ""}${mv ? " moved" : ""}${smState && smState.pid && smState.pid === p.pid ? " picked" : ""}"${act} style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;animation-delay:${(i * 0.06).toFixed(2)}s">${avatar(pl)}${roles.length ? `<span class="pos ${main[0]}">${roles.map(r => r[1]).join("·")}</span>` : ""}<span class="nm">${esc(nameOf(p))}</span><span class="no">${mv ? (mv.from == null ? "arrive" : "vient de la table " + (mv.from + 1)) : "siège " + (i + 1)}</span></div>`;
     }).join("");
     const role = (cls, lab, i) => `<span><i class="pos ${cls}" style="background:${cls === "d" ? "#fff" : cls === "sb" ? "#c45cff" : "#ffd166"};color:${cls === "sb" ? "#fff" : "#000"}">${lab}</i><b>${esc(nameOf(t.seats[i]))}</b></span>`;
@@ -1791,7 +1791,7 @@ function playDeal(order) {
     const ord = order[ti]; if (!ord) return;
     const tb = tab.querySelector(".ptable"), n = ord.length;
     const deck = document.createElement("div"); deck.className = "pdeck"; deck.innerHTML = "<span></span><span></span><span></span>"; tb.appendChild(deck);
-    const seatEl = i => tb.querySelector(`.seat[data-si="${i}"]`), cardEl = i => tb.querySelector(`.pcard[data-ci="${i}"]`);
+    const seatEl = i => tb.querySelector(`.seat[data-si="${i}"]`), cardEl = i => tb.querySelector(`.dcard[data-ci="${i}"]`);
     // chaque joueur s'assoit d'abord dans l'ordre de distribution
     ord.forEach((fi, k) => {
       const se = seatEl(fi), ce = cardEl(fi); if (!se || !ce) return;
