@@ -6,7 +6,7 @@ Application web en un seul fichier (`index.html`), installable sur tablette et t
 
 ## Appli Android (Google Play)
 
-Le dossier `android/` contient l'appli Android : elle embarque `index.html` et fonctionne sans Internet. GitHub la construit automatiquement à chaque modification (onglet **Actions** > « Appli Android » > « Artifacts ») :
+Le dossier `android/` contient l'appli Android : elle embarque `index.html` et fonctionne sans Internet. GitHub la construit automatiquement à chaque modification et publie les fichiers sur la page **Releases** du dépôt :
 
 - `playstore-aab-…` : le fichier `.aab` à envoyer sur la Play Console (signé si la clé d'envoi est enregistrée dans les secrets du dépôt : `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_ALIAS`, `UPLOAD_KEY_PASSWORD`) ;
 - `test-apk-…` : un `.apk` à installer directement sur un téléphone pour essayer.

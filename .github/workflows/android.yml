@@ -12,6 +12,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -59,3 +61,13 @@ jobs:
         with:
           name: test-apk-v${{ github.run_number }}
           path: dist/*.apk
+
+      - name: Publier la version (page « Releases » du dépôt)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" dist/*.apk dist/*.aab \
+            --target "${{ github.sha }}" \
+            --title "Blind Poker Lab 1.0.${{ github.run_number }}" \
+            --notes "Le fichier .apk s'installe directement sur un téléphone Android pour essayer. Le fichier .aab est celui à déposer dans la Play Console."
