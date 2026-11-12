@@ -980,7 +980,39 @@ const Cloud = {
   outbox() { if (!this.out) { try { this.out = JSON.parse(this.ls("bpl-outbox") || "{}"); } catch (e) { this.out = {}; } } return this.out; },
   saveOut() { this.ls("bpl-outbox", JSON.stringify(this.outbox())); },
   set(state, err) { this.state = state; this.err = err || ""; if (state === "ok") this.lastOk = Date.now(); renderSync(); },
+  // Dans Claude, la page n'a pas le droit de joindre la base directement : elle passe alors par le connecteur Supabase de l'utilisateur.
   async rpc(fn, body) {
+    if (this.viaMcp) return this.rpcMcp(fn, body);
+    try { return await this.rpcHttp(fn, body); }
+    catch (e) {
+      if (e.status || !(window.claude && window.claude.use)) throw e;
+      const m = await window.claude.use("mcp").catch(() => null); if (!m) throw e;
+      this.viaMcp = m; clearInterval(this.timer); this.timer = setInterval(() => { if (document.visibilityState === "visible") this.sync(); }, 15000);
+      return this.rpcMcp(fn, body);
+    }
+  },
+  async rpcMcp(fn, body) {
+    const lit = v => "'" + String(v).replace(/'/g, "''") + "'";
+    const q = fn === "bpl_pull" ? `select col, id, data, deleted, rev from public.bpl_pull(${lit(body.p_code)}, ${Number(body.p_since) || 0})`
+      : fn === "bpl_push" ? `select public.bpl_push(${lit(body.p_code)}, ${lit(JSON.stringify(body.p_docs))}::jsonb) as rev` : "select public.bpl_ping() as ok";
+    let r;
+    try { r = await this.viaMcp.callTool("Supabase", "execute_sql", { project_id: "uluwjjhrqgjvogaoejja", query: q }); }
+    catch (e) {
+      const err = new Error(e.code === "server_not_connected" || e.code === "needs_reauth" || e.code === "approval_required" || e.code === "blocked_by_policy"
+        ? "dans Claude, la mémoire commune passe par le connecteur Supabase : ajoute-le ou reconnecte-le, puis autorise-le pour cette page" : (e.message || e.code || "erreur"));
+      if (e.code !== "server_unavailable" && e.code !== "rate_limited" && e.code !== "upstream_error") err.status = 403;
+      throw err;
+    }
+    let t = r && r.payload !== undefined ? r.payload : null;
+    if (t && typeof t === "object" && typeof t.result === "string") t = t.result;
+    if (typeof t !== "string") t = ((r && r.content) || []).filter(c => c.type === "text").map(c => c.text).join("\n");
+    try { const o = JSON.parse(t); if (o && typeof o.result === "string") t = o.result; } catch (e) {}
+    const end = t.indexOf("</untrusted-data-"), open = end < 0 ? -1 : t.lastIndexOf("<untrusted-data-", end);
+    const rows = JSON.parse(open < 0 ? t : t.slice(t.indexOf(">", open) + 1, end).trim());
+    if (fn === "bpl_push") return rows[0] && rows[0].rev;
+    return rows;
+  },
+  async rpcHttp(fn, body) {
     const r = await fetch(this.URL + "/rest/v1/rpc/" + fn, { method: "POST", headers: { "Content-Type": "application/json", apikey: this.KEY }, body: JSON.stringify(body) });
     if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch (e) {} const e = new Error(m || ("HTTP " + r.status)); e.status = r.status; throw e; }
     return r.json();
@@ -1070,12 +1102,12 @@ function renderSyncDlg() {
     $("sync-new").addEventListener("click", () => Cloud.connect(newClubCode()).then(renderSync));
     $("sync-go").addEventListener("click", async () => { if (!(await Cloud.connect($("sync-in").value))) { $("sync-in").setCustomValidity("Code incomplet"); $("sync-in").reportValidity(); } else renderSync(); });
   } else {
-    const st = { ok: "✓ Tout est synchronisé", sync: "⟳ Synchronisation en cours…", offline: "○ Hors connexion : les changements partiront dès le retour d'Internet", error: "⚠ Le serveur a refusé un envoi : " + esc(Cloud.err) }[Cloud.state] || "";
+    const st = { ok: "✓ Tout est synchronisé", sync: "⟳ Synchronisation en cours…", offline: "○ Hors connexion : les changements partiront dès le retour d'Internet", error: "⚠ Synchronisation impossible : " + esc(Cloud.err) }[Cloud.state] || "";
     const n = Object.keys(Cloud.outbox()).length;
     body.innerHTML = `<p>Code de ton club, à saisir sur tes autres appareils :</p><div class="sync-code">${esc(code)}</div>
       <p class="sync-st" data-state="${Cloud.state}">${st}${n ? ` (${n} changement${n > 1 ? "s" : ""} en attente)` : ""}</p>
       <p class="hint">Garde ce code pour toi : toute personne qui l'a peut voir et modifier tes tournois.</p>
-      ${Cloud.state === "offline" ? `<p class="hint">Internet marche mais ça reste « Hors connexion » ? La version dans Claude n'a peut-être pas le droit de joindre la mémoire commune : ouvre plutôt le site ou l'appli.</p>` : ""}
+      ${Cloud.state === "offline" ? `<p class="hint">Internet marche mais ça reste « Hors connexion » ? Dans Claude, autorise le connecteur Supabase quand il te le demande, ou ouvre plutôt le site ou l'appli.</p>` : ""}
       <div class="btns"><button class="btn ghost" id="sync-copy">Copier le code</button><button class="btn ghost" id="sync-again">Tout récupérer à nouveau</button><button class="btn danger" id="sync-off">Délier cet appareil</button></div>`;
     $("sync-copy").addEventListener("click", () => { try { navigator.clipboard.writeText(code); $("sync-copy").textContent = "Copié"; } catch (e) {} });
     $("sync-again").addEventListener("click", () => { Cloud.resync(); renderSyncDlg(); });
