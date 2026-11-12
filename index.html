@@ -669,7 +669,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
         <label class="opt"><input type="radio" name="bmode" value="none"><b>Classique</b><span>Pas de prime : la cagnotte va aux meilleurs classements.</span></label>
         <label class="opt"><input type="radio" name="bmode" value="fixed"><b>Bounty (KO)</b><span>Une prime fixe sur la tête de chaque joueur, touchée par celui qui l'élimine.</span></label>
         <label class="opt"><input type="radio" name="bmode" value="pko"><b>Bounty progressif</b><span>Tu touches la moitié de la prime de ta victime (arrondie à 5 €), l'autre moitié s'ajoute à la tienne.</span></label>
-        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>À chaque élimination, une roulette tire une prime au hasard parmi les enveloppes : un gros lot, puis des primes plus petites, toujours par dizaines.</span></label>
+        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>À chaque élimination, une roulette tire une prime au hasard parmi les enveloppes : un gros lot, puis des primes plus petites (5, 10, 15, 20 €…).</span></label>
       </div>
 
       <h3>Options</h3>
@@ -1371,43 +1371,40 @@ function koEvents(s) {
 }
 /* ---------- Mystery bounty : les enveloppes ----------
    La cagnotte des primes (entrées + recaves × prime) est répartie en enveloppes, une par élimination possible
-   (tous les joueurs sauf le vainqueur) : un seul gros lot, puis des montants qui diminuent, toujours par dizaines.
+   (tous les joueurs sauf le vainqueur) : un seul gros lot, puis des montants qui diminuent, toujours par 5 €.
    Chaque élimination tire une enveloppe au hasard parmi celles qui restent ; le montant est gardé dans l'élimination. */
-const MYS_STEPS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 400, 500, 750, 1000];
+const MYS_STEPS = [5, 10, 15, 20, 30, 40, 50, 60, 80, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
 const r2 = v => Math.round(v * 100) / 100;
-const mysUp = v => MYS_STEPS.find(s => s > v) || v + 100;
-const mysDown = v => { const d = MYS_STEPS.filter(s => s < v).pop(); return d || 10; };
-// ajuste une liste d'enveloppes (dizaines d'euros) pour qu'elle fasse exactement « target » ; un seul gros lot
+const mysUp = v => MYS_STEPS.find(s => s > v) || v + 50;
+const mysDown = v => { const d = MYS_STEPS.filter(s => s < v).pop(); return d || 5; };
+// ajuste une liste d'enveloppes (multiples de 5 €) pour qu'elle fasse exactement « target » ; un seul gros lot
 function mysFix(a, target) {
   a = a.slice().sort((x, y) => y - x); const n = a.length; if (!n) return a;
-  const k = Math.min(n, Math.floor(target / 10)); // pas assez pour 10 € par enveloppe : certaines restent vides
-  if (k < n) { const top = k ? mysFix(a.slice(0, k), target) : [r2(target)]; return top.concat(Array(n - top.length).fill(0)).sort((x, y) => y - x); }
-  const base = Math.floor(target / 10) * 10; let diff = base - a.reduce((s, v) => s + v, 0), guard = 0;
+  if (target < 5 * n) { const e = Math.floor(target / n * 100) / 100; a = Array(n).fill(e); a[0] = r2(target - e * (n - 1)); return a; }
+  const base = Math.floor(target / 5) * 5; let diff = base - a.reduce((s, v) => s + v, 0), guard = 0;
   while (diff !== 0 && guard++ < 5000) {
     a.sort((x, y) => y - x);
     if (diff > 0) { // on monte d'abord les petites enveloppes, sans dépasser celle du dessus ni le gros lot
       let done = false;
       for (let i = n - 1; i >= 1 && !done; i--) { const u = mysUp(a[i]); if (u - a[i] <= diff && u < a[0] && (i === 1 || u <= a[i - 1])) { diff -= u - a[i]; a[i] = u; done = true; } }
-      if (!done) { const u = mysUp(a[0]), d = u - a[0] <= diff ? u - a[0] : 10; a[0] += d; diff -= d; }
+      if (!done) { const u = mysUp(a[0]), d = u - a[0] <= diff ? u - a[0] : 5; a[0] += d; diff -= d; }
     } else { // on baisse d'abord les grosses enveloppes (hors gros lot)
       let done = false;
-      for (let i = 1; i < n && !done; i++) { const d = mysDown(a[i]); if (a[i] > 10 && a[i] - d <= -diff) { diff += a[i] - d; a[i] = d; done = true; } }
-      if (!done) { const i = a[0] > 10 && (n === 1 || a[0] - 10 > a[1]) ? 0 : a.findIndex((v, j) => j > 0 && v > 10); if (i < 0) { a[0] -= 10; diff += 10; } else { a[i] -= 10; diff += 10; } }
+      for (let i = 1; i < n && !done; i++) { const d = mysDown(a[i]); if (a[i] > 5 && a[i] - d <= -diff) { diff += a[i] - d; a[i] = d; done = true; } }
+      if (!done) { const i = a[0] > 5 && (n === 1 || a[0] - 5 > a[1]) ? 0 : a.findIndex((v, j) => j > 0 && v > 5); if (i < 0) { a[0] -= 5; diff += 5; } else { a[i] -= 5; diff += 5; } }
     }
   }
   a.sort((x, y) => y - x);
-  if (n > 1 && a[0] === a[1]) { const j = a.map((v, i) => i).filter(i => i > 0 && a[i] > 10).pop(); if (j != null) { a[0] += 10; a[j] -= 10; a.sort((x, y) => y - x); } }
-  a[0] = r2(a[0] + target - base); // reste éventuel (prime qui n'est pas une dizaine) : ajouté au gros lot
+  if (n > 1 && a[0] === a[1]) { const j = a.map((v, i) => i).filter(i => i > 0 && a[i] > 5).pop(); if (j != null) { a[0] += 5; a[j] -= 5; a.sort((x, y) => y - x); } }
+  a[n - 1] = r2(a[n - 1] + target - base); // centimes éventuels (prime qui n'est pas un multiple de 5 €)
   return a.sort((x, y) => y - x);
 }
 // n enveloppes pour une cagnotte « pool » : un gros lot, puis des montants qui diminuent (poids 1, 1/2, 1/3…)
-// Chaque élimination gagne au moins 10 € ; une enveloppe n'est vide que si la cagnotte ne permet pas 10 € pour tout le monde.
 function mysPlan(n, pool) {
   n = Math.max(0, Math.floor(n)); if (!n) return [];
-  const full = Math.max(1, Math.min(n, Math.floor(pool / 10)));
-  const H = Array.from({ length: full }, (_, i) => 1 / (i + 1)), sh = H.reduce((a, b) => a + b, 0);
-  const near = v => MYS_STEPS.reduce((b, s) => Math.abs(s - v) < Math.abs(b - v) ? s : b, 10);
-  return mysFix(H.map(w => near(pool * w / sh)), Math.max(0, pool)).concat(Array(n - full).fill(0));
+  const H = Array.from({ length: n }, (_, i) => 1 / (i + 1)), sh = H.reduce((a, b) => a + b, 0);
+  const near = v => MYS_STEPS.reduce((b, s) => Math.abs(s - v) < Math.abs(b - v) ? s : b, 5);
+  return mysFix(H.map(w => near(pool * w / sh)), Math.max(0, pool));
 }
 function mysDeck(s, r, excludeLast) {
   const p = payouts(s, r || compute(s)), n = Math.max(1, p.entries + p.rebuys - 1), plan = mysPlan(n, p.bountyPool);
@@ -1416,7 +1413,7 @@ function mysDeck(s, r, excludeLast) {
   drawn.forEach(d => { if (!left.length) return; let j = left.indexOf(d); if (j < 0) j = left.reduce((b, v, i) => Math.abs(v - d) < Math.abs(left[b] - d) ? i : b, 0); left.splice(j, 1); });
   const m = Math.max(0, n - (ev.length - (excludeLast ? 1 : 0))), rest = Math.max(0, r2(p.bountyPool - spent));
   while (left.length > m) left.pop();
-  while (left.length < m) left.push(10);
+  while (left.length < m) left.push(5);
   return { plan, drawn, left: m && rest > 0 ? mysFix(left, rest) : [], rest, pool: p.bountyPool, n };
 }
 const mysQueue = [];
