@@ -42,6 +42,24 @@ header.top .wrap { display: flex; align-items: center; gap: 12px 16px; flex-wrap
 .syncbtn:hover { border-color: var(--felt); color: var(--felt); }
 #sync-dlg { width: min(460px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); padding: 18px; }
 #sync-dlg::backdrop { background: rgba(0, 0, 0, .7); }
+.mys { position: fixed; inset: 0; z-index: 90; background: rgba(5, 2, 8, .94); display: grid; place-items: center; padding: 16px; overflow: auto; }
+.mys-box { display: grid; justify-items: center; gap: 12px; text-align: center; width: min(560px, 100%); }
+.mys-t { margin: 0; font: 800 clamp(26px, 5vmin, 44px) var(--display); text-transform: uppercase; letter-spacing: .04em; color: #ffcf4a; }
+.mys-who { margin: 0; font-size: clamp(16px, 2.6vmin, 22px); color: var(--muted); } .mys-who b { color: var(--ink); }
+.wheel-wrap { position: relative; width: min(72vmin, 440px); aspect-ratio: 1; }
+.wheel { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 6px #ffcf4a, 0 0 40px rgba(169, 44, 240, .55); overflow: hidden; will-change: transform; }
+.wheel::after { content: ""; position: absolute; inset: 41%; border-radius: 50%; background: #050208; box-shadow: 0 0 0 4px #ffcf4a; }
+.wheel span { position: absolute; inset: 0; pointer-events: none; }
+.wheel span b { display: block; width: max-content; margin: 5% auto 0; font: 800 var(--wf, 18px) var(--display); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.wheel span b.gold { color: #2a1400; text-shadow: none; }
+.wheel-pin { position: absolute; left: 50%; top: -14px; z-index: 2; transform: translateX(-50%); width: 0; height: 0; border-left: 16px solid transparent; border-right: 16px solid transparent; border-top: 30px solid #fff; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .8)); }
+.mys-res { margin: 0; min-height: 1.3em; font: 800 clamp(24px, 5vmin, 46px) var(--display); }
+.mys-res em { font-style: normal; color: #ffcf4a; }
+.mys-res.pop { animation: mpop .5s ease-out; }
+@keyframes mpop { 0% { transform: scale(.6); opacity: 0 } 70% { transform: scale(1.12) } 100% { transform: scale(1); opacity: 1 } }
+.mchips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.mchip { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 14px; color: var(--muted); } .mchip b { color: var(--ink); font-size: 16px; }
+.mchip.top { border-color: #ffcf4a; } .mchip.top b { color: #ffcf4a; }
 #sync-dlg p { margin: 0 0 10px; } .sync-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; } .sync-head h3 { margin: 0; font: 800 22px var(--display); text-transform: uppercase; }
 .sync-row { display: flex; gap: 8px; margin-bottom: 8px; } .sync-row input { text-transform: uppercase; letter-spacing: .08em; }
 .sync-code { font: 800 clamp(24px, 7vw, 34px) var(--display); letter-spacing: .08em; color: var(--brass); text-align: center; padding: 12px; border: 1px dashed var(--line); border-radius: 10px; margin: 0 0 12px; user-select: all; }
@@ -577,6 +595,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
 <main class="wrap">
   <div id="storenote"></div>
   <dialog id="sync-dlg" aria-labelledby="sync-title"><div class="sync-head"><h3 id="sync-title">Mémoire commune</h3><button class="btn ghost small" id="sync-close">Fermer</button></div><div id="sync-body"></div></dialog>
+  <div class="mys" id="mys" hidden role="dialog" aria-modal="true" aria-labelledby="mys-t"><div class="mys-box"><p class="mys-t" id="mys-t">Mystery bounty</p><p class="mys-who" id="mys-who"></p><div class="wheel-wrap"><div class="wheel-pin"></div><div class="wheel" id="wheel"></div></div><p class="mys-res" id="mys-res" aria-live="assertive"></p><button class="btn" id="mys-ok" hidden>Continuer</button></div></div>
   <p id="loading" class="hint">Chargement de tes tournois…</p>
 
   <div class="seat-toast" id="seat-toast" hidden role="status"></div>
@@ -623,8 +642,8 @@ body:has(.dash.clock-full) { overflow: hidden; }
       <div class="opts" id="n-bmode">
         <label class="opt"><input type="radio" name="bmode" value="none"><b>Classique</b><span>Pas de prime : la cagnotte va aux meilleurs classements.</span></label>
         <label class="opt"><input type="radio" name="bmode" value="fixed"><b>Bounty (KO)</b><span>Une prime fixe sur la tête de chaque joueur, touchée par celui qui l'élimine.</span></label>
-        <label class="opt"><input type="radio" name="bmode" value="pko"><b>Bounty progressif</b><span>Tu touches la moitié de la prime de ta victime, l'autre moitié s'ajoute à la tienne.</span></label>
-        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>Chaque élimination fait tirer une prime au hasard dans la cagnotte des primes.</span></label>
+        <label class="opt"><input type="radio" name="bmode" value="pko"><b>Bounty progressif</b><span>Tu touches la moitié de la prime de ta victime (arrondie à 5 €), l'autre moitié s'ajoute à la tienne.</span></label>
+        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>À chaque élimination, une roulette tire une prime au hasard parmi les enveloppes (un gros lot, puis des primes plus petites).</span></label>
       </div>
 
       <h3>Options</h3>
@@ -790,6 +809,11 @@ body:has(.dash.clock-full) { overflow: hidden; }
         <p class="hint" id="ledger-hint"></p>
         <div class="tbl"><table class="pay" id="bountytable"></table></div>
       </div>
+      <div class="panel" id="mys-panel" hidden>
+        <h2>Enveloppes mystery</h2>
+        <p class="hint" id="mys-hint"></p>
+        <div class="mchips" id="mys-chips"></div>
+      </div>
     </div>
   </section>
 
@@ -872,9 +896,9 @@ const newTournament = () => ({
   id: uid(), createdAt: Date.now(), date: localISO(new Date()), status: "prep",
   name: "Tournoi du vendredi", players: 8, duration: 4, perTable: 9,
   chips: [5,10,25,100,500,1000], chipSet: defaultChipSet(), owned: {}, rebuy: false, reentry: false, addon: false, antes: false, anteFrom: 8,
-  bountyMode: "none", bounty: 5,
+  bountyMode: "none", bounty: 10,
   pauses: [], every: 6, brkEvery: 60, brkMin: 10, startDepth: 200, endDepth: 28, targetLevels: 18, man: {}, edits: {},
-  pay: { buyin: 10, rebuy: 10, addon: 10, added: 0, places: null, round: "auto" },
+  pay: { buyin: 20, rebuy: 20, addon: 10, added: 0, places: null, round: "auto" },
   clock: newClock(), entries: []
 });
 function defaultChipSet() { const k = typeof Store !== "undefined" && Store.X.main && Array.isArray(Store.X.main.chipSet) ? Store.X.main.chipSet : null; return k ? clone(k) : [5,10,25,100,500,1000].map(chipFromValue); }
@@ -972,11 +996,12 @@ const Cloud = {
     const code = this.code(); if (!code || this.busy) return;
     this.busy = true;
     try {
-      // 1. envoyer ce qui attend
-      const box = this.outbox(), keys = Object.keys(box);
-      for (let i = 0; i < keys.length; i += 40) {
-        const part = keys.slice(i, i + 40), sent = part.map(k => box[k]);
-        await this.rpc("bpl_push", { p_code: code, p_docs: sent });
+      // 1. envoyer ce qui attend, document par petits lots : un envoi refusé ne bloque ni les autres, ni la réception
+      const box = this.outbox(), keys = Object.keys(box); let pushErr = null;
+      for (let i = 0; i < keys.length; i += 20) {
+        const part = keys.slice(i, i + 20), sent = part.map(k => box[k]);
+        try { await this.rpc("bpl_push", { p_code: code, p_docs: sent }); }
+        catch (e) { if (!e.status) throw e; pushErr = e; continue; } // pas de réseau : on réessaiera
         part.forEach((k, j) => { if (this.outbox()[k] === sent[j]) delete this.outbox()[k]; }); // gardé s'il a changé entre-temps
         this.saveOut();
       }
@@ -997,6 +1022,7 @@ const Cloud = {
       this.ls("bpl-since", String(since));
       const cs = Object.keys(changed);
       if (cs.length) { Store.saveLocal(); cs.forEach(c => Store.onChange(c)); }
+      if (pushErr) throw pushErr;
       this.set(Object.keys(this.outbox()).length ? "sync" : "ok");
     } catch (e) {
       if (e.status === 400 || e.status === 403) this.set("error", e.message); else this.set("offline");
@@ -1014,6 +1040,12 @@ const Cloud = {
     this._code = code; this.ls("bpl-club", code); this.ls("bpl-since", "0");
     Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false }; }));
     this.saveOut(); this.start(); return true;
+  },
+  // tout renvoyer et tout récupérer depuis le début (en cas de doute)
+  resync() {
+    if (!this.code()) return;
+    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d && !this.outbox()[col + "/" + id]) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false }; }));
+    this.saveOut(); this.ls("bpl-since", "0"); this.set("sync"); this.sync();
   },
   disconnect() { this.stop(); this._code = ""; this.ls("bpl-club", null); this.ls("bpl-since", null); this.out = {}; this.saveOut(); renderSync(); }
 };
@@ -1038,13 +1070,15 @@ function renderSyncDlg() {
     $("sync-new").addEventListener("click", () => Cloud.connect(newClubCode()).then(renderSync));
     $("sync-go").addEventListener("click", async () => { if (!(await Cloud.connect($("sync-in").value))) { $("sync-in").setCustomValidity("Code incomplet"); $("sync-in").reportValidity(); } else renderSync(); });
   } else {
-    const st = { ok: "✓ Tout est synchronisé", sync: "⟳ Synchronisation en cours…", offline: "○ Hors connexion : les changements partiront dès le retour d'Internet", error: "⚠ Le serveur refuse ce code : " + esc(Cloud.err) }[Cloud.state] || "";
+    const st = { ok: "✓ Tout est synchronisé", sync: "⟳ Synchronisation en cours…", offline: "○ Hors connexion : les changements partiront dès le retour d'Internet", error: "⚠ Le serveur a refusé un envoi : " + esc(Cloud.err) }[Cloud.state] || "";
     const n = Object.keys(Cloud.outbox()).length;
     body.innerHTML = `<p>Code de ton club, à saisir sur tes autres appareils :</p><div class="sync-code">${esc(code)}</div>
       <p class="sync-st" data-state="${Cloud.state}">${st}${n ? ` (${n} changement${n > 1 ? "s" : ""} en attente)` : ""}</p>
       <p class="hint">Garde ce code pour toi : toute personne qui l'a peut voir et modifier tes tournois.</p>
-      <div class="btns"><button class="btn ghost" id="sync-copy">Copier le code</button><button class="btn danger" id="sync-off">Délier cet appareil</button></div>`;
+      ${Cloud.state === "offline" ? `<p class="hint">Internet marche mais ça reste « Hors connexion » ? La version dans Claude n'a peut-être pas le droit de joindre la mémoire commune : ouvre plutôt le site ou l'appli.</p>` : ""}
+      <div class="btns"><button class="btn ghost" id="sync-copy">Copier le code</button><button class="btn ghost" id="sync-again">Tout récupérer à nouveau</button><button class="btn danger" id="sync-off">Délier cet appareil</button></div>`;
     $("sync-copy").addEventListener("click", () => { try { navigator.clipboard.writeText(code); $("sync-copy").textContent = "Copié"; } catch (e) {} });
+    $("sync-again").addEventListener("click", () => { Cloud.resync(); renderSyncDlg(); });
     $("sync-off").addEventListener("click", () => { if (confirm("Délier cet appareil ? Ses données restent sur l'appareil, mais ne seront plus partagées.")) Cloud.disconnect(); });
   }
 }
@@ -1270,6 +1304,61 @@ function koEvents(s) {
   // ordre chronologique ; sans horodatage (anciennes données), l'ordre de sortie (place la plus haute = sorti plus tôt)
   return ev.sort((a, b) => (a.at - b.at) || ((b.out || 0) - (a.out || 0)));
 }
+/* ---------- Mystery bounty : les enveloppes ----------
+   La cagnotte des primes (entrées + recaves × prime) est répartie en enveloppes, une par élimination possible
+   (tous les joueurs sauf le vainqueur) : un seul gros lot, puis des montants qui diminuent, toujours par 5 €.
+   Chaque élimination tire une enveloppe au hasard parmi celles qui restent ; le montant est gardé dans l'élimination. */
+const MYS_STEPS = [5, 10, 15, 20, 30, 40, 50, 60, 80, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+const r2 = v => Math.round(v * 100) / 100;
+const mysUp = v => MYS_STEPS.find(s => s > v) || v + 50;
+const mysDown = v => { const d = MYS_STEPS.filter(s => s < v).pop(); return d || 5; };
+// ajuste une liste d'enveloppes (multiples de 5 €) pour qu'elle fasse exactement « target » ; un seul gros lot
+function mysFix(a, target) {
+  a = a.slice().sort((x, y) => y - x); const n = a.length; if (!n) return a;
+  if (target < 5 * n) { const e = Math.floor(target / n * 100) / 100; a = Array(n).fill(e); a[0] = r2(target - e * (n - 1)); return a; }
+  const base = Math.floor(target / 5) * 5; let diff = base - a.reduce((s, v) => s + v, 0), guard = 0;
+  while (diff !== 0 && guard++ < 5000) {
+    a.sort((x, y) => y - x);
+    if (diff > 0) { // on monte d'abord les petites enveloppes, sans dépasser celle du dessus ni le gros lot
+      let done = false;
+      for (let i = n - 1; i >= 1 && !done; i--) { const u = mysUp(a[i]); if (u - a[i] <= diff && u < a[0] && (i === 1 || u <= a[i - 1])) { diff -= u - a[i]; a[i] = u; done = true; } }
+      if (!done) { const u = mysUp(a[0]), d = u - a[0] <= diff ? u - a[0] : 5; a[0] += d; diff -= d; }
+    } else { // on baisse d'abord les grosses enveloppes (hors gros lot)
+      let done = false;
+      for (let i = 1; i < n && !done; i++) { const d = mysDown(a[i]); if (a[i] > 5 && a[i] - d <= -diff) { diff += a[i] - d; a[i] = d; done = true; } }
+      if (!done) { const i = a[0] > 5 && (n === 1 || a[0] - 5 > a[1]) ? 0 : a.findIndex((v, j) => j > 0 && v > 5); if (i < 0) { a[0] -= 5; diff += 5; } else { a[i] -= 5; diff += 5; } }
+    }
+  }
+  a.sort((x, y) => y - x);
+  if (n > 1 && a[0] === a[1]) { const j = a.map((v, i) => i).filter(i => i > 0 && a[i] > 5).pop(); if (j != null) { a[0] += 5; a[j] -= 5; a.sort((x, y) => y - x); } }
+  a[n - 1] = r2(a[n - 1] + target - base); // centimes éventuels (prime qui n'est pas un multiple de 5 €)
+  return a.sort((x, y) => y - x);
+}
+// n enveloppes pour une cagnotte « pool » : un gros lot, puis des montants qui diminuent (poids 1, 1/2, 1/3…)
+function mysPlan(n, pool) {
+  n = Math.max(0, Math.floor(n)); if (!n) return [];
+  const H = Array.from({ length: n }, (_, i) => 1 / (i + 1)), sh = H.reduce((a, b) => a + b, 0);
+  const near = v => MYS_STEPS.reduce((b, s) => Math.abs(s - v) < Math.abs(b - v) ? s : b, 5);
+  return mysFix(H.map(w => near(pool * w / sh)), Math.max(0, pool));
+}
+function mysDeck(s, r, excludeLast) {
+  const p = payouts(s, r || compute(s)), n = Math.max(1, p.entries + p.rebuys - 1), plan = mysPlan(n, p.bountyPool);
+  const ev = koEvents(s), drawn = ev.map(x => x.rec && x.rec.mys).filter(v => v != null);
+  const spent = r2(drawn.reduce((a, b) => a + b, 0)), left = plan.slice();
+  drawn.forEach(d => { if (!left.length) return; let j = left.indexOf(d); if (j < 0) j = left.reduce((b, v, i) => Math.abs(v - d) < Math.abs(left[b] - d) ? i : b, 0); left.splice(j, 1); });
+  const m = Math.max(0, n - (ev.length - (excludeLast ? 1 : 0))), rest = Math.max(0, r2(p.bountyPool - spent));
+  while (left.length > m) left.pop();
+  while (left.length < m) left.push(5);
+  return { plan, drawn, left: m && rest > 0 ? mysFix(left, rest) : [], rest, pool: p.bountyPool, n };
+}
+const mysQueue = [];
+function drawMystery(s, rec, victim, killer) {
+  if (s.bountyMode !== "mystery" || !killer || killer === victim) return;
+  const deck = mysDeck(s, R, true).left; if (!deck.length) return;
+  rec.mys = deck[Math.floor(Math.random() * deck.length)];
+  mysQueue.push({ v: rec.mys, deck, victim, killer, jackpot: rec.mys === Math.max(...deck) && deck.filter(x => x === rec.mys).length === 1 });
+  setTimeout(runMystery, 50);
+}
 function replayKO(s) {
   const B = Math.max(0, num(s.bounty, 0)), mode = s.bountyMode;
   const base = e => e.legacy || { kos: 0, cash: 0, head: 0 };
@@ -1279,7 +1368,8 @@ function replayKO(s) {
     if (k && k !== v) {
       k.kos += 1;
       if (mode === "fixed") { rec.gain = B; k.cash += B; }
-      if (mode === "pko") { const half = Math.round(v.bounty / 2 * 100) / 100; rec.gain = half; rec.bountyAdd = v.bounty - half; k.cash += half; k.bounty += rec.bountyAdd; }
+      if (mode === "mystery" && rec.mys != null) { rec.gain = rec.mys; k.cash += rec.mys; }
+      if (mode === "pko") { const half = Math.min(v.bounty, Math.round(v.bounty / 10) * 5); /* la moitié, arrondie à 5 € près */ rec.gain = half; rec.bountyAdd = v.bounty - half; k.cash += half; k.bounty += rec.bountyAdd; }
     }
     if (fresh) v.bounty = B; // recave ou re-entry : une prime neuve sur sa tête
   });
@@ -1299,6 +1389,7 @@ function eliminate(pid, byPid) {
   const x = entryOf(S, pid); if (!x || x.out != null) return;
   const alive = S.entries.filter(e => e.out == null).length;
   x.out = alive; x.by = byPid || null; x.elim = { by: byPid || null }; x.outAt = Date.now();
+  drawMystery(S, x.elim, pid, byPid);
   replayKO(S);
   if (alive - 1 <= 1 && S.entries.length > 1) { const st = clockState(); S.status = "done"; S.clock.running = false; S.clock.remaining = st.rem; S.clock.endsAt = null; lockScreen(false); }
 }
@@ -1308,6 +1399,7 @@ function rebuyKO(pid, byPid) {
   x.rebuys = (x.rebuys || 0) + 1;
   x.rebuyLog = (x.rebuyLog || []).concat([rec]);
   x.lastKoAt = rec.at; x.lastKoBy = rec.by;
+  drawMystery(S, rec, pid, byPid);
   replayKO(S);
 }
 function undoRebuy(pid) {
@@ -1318,11 +1410,11 @@ function undoRebuy(pid) {
   replayKO(S);
 }
 function ledger(s, r) {
-  const p = payouts(s, r), w = winnerOf(s), cashMode = s.bountyMode === "fixed" || s.bountyMode === "pko";
+  const p = payouts(s, r), w = winnerOf(s), cashMode = s.bountyMode !== "none", mysRest = s.bountyMode === "mystery" && w ? mysDeck(s, r).rest : 0;
   return s.entries.map(e => {
     const place = placeOf(s, e);
     const prize = place && place <= p.prizes.length ? p.prizes[place - 1] : 0;
-    const bounty = cashMode ? e.cash + (e === w ? e.bounty : 0) : 0; // le vainqueur garde sa propre prime
+    const bounty = cashMode ? r2(e.cash + (e === w ? (s.bountyMode === "mystery" ? mysRest : e.bounty) : 0)) : 0; // le vainqueur garde sa propre prime (en mystery : les enveloppes restantes)
     const paid = (1 + (e.reentries || 0)) * (s.pay.buyin + (s.bountyMode !== "none" ? s.bounty : 0)) + (e.rebuys || 0) * (s.pay.rebuy + (s.bountyMode !== "none" ? s.bounty : 0)) + (e.addons || 0) * s.pay.addon;
     return { e, pl: pOf(e.pid, s), place, kos: e.kos || 0, bounty, prize, total: bounty + prize, paid, head: e.out == null ? e.bounty : null };
   });
@@ -1336,7 +1428,7 @@ function undoElim(pid) {
 function reenter(pid) {
   const x = entryOf(S, pid); if (!x || x.out == null) return;
   // l'élimination reste acquise pour celui qui l'a faite ; le joueur revient avec une nouvelle prime
-  x.reentryLog = (x.reentryLog || []).concat([{ by: x.by, at: x.outAt || Date.now() }]);
+  x.reentryLog = (x.reentryLog || []).concat([Object.assign({ by: x.by, at: x.outAt || Date.now() }, x.elim && x.elim.mys != null ? { mys: x.elim.mys } : {})]);
   // il revient en jeu : ceux sortis après lui reculent d'une place
   S.entries.forEach(e => { if (e !== x && e.out != null && e.out < x.out) e.out += 1; });
   x.reentries = (x.reentries || 0) + 1; x.out = null; x.by = null; x.elim = null; x.outAt = null; replayKO(S);
@@ -2157,7 +2249,7 @@ function rotHTML(kind) {
   }
   if (kind === "bounty") {
     const mys = S.bountyMode === "mystery", pko = S.bountyMode === "pko";
-    return L.sort((a, b) => (b.bounty - a.bounty) || (b.kos - a.kos)).map((x, i) => row(i + 1, x, `<span class="hint" style="margin:0">${x.kos} KO${pko && x.head != null ? ` · tête ${fmt2(x.head)} €` : ""}</span><b>${mys ? x.kos + " tir." : fmt2(x.bounty) + " €"}</b>`, x.e.out != null)).join("");
+    return L.sort((a, b) => (b.bounty - a.bounty) || (b.kos - a.kos)).map((x, i) => row(i + 1, x, `<span class="hint" style="margin:0">${x.kos} KO${pko && x.head != null ? ` · tête ${fmt2(x.head)} €` : ""}</span><b>${fmt2(x.bounty) + " €"}</b>`, x.e.out != null)).join("");
   }
   // gains
   const g = L.filter(x => x.total > 0).sort((a, b) => b.total - a.total);
@@ -2252,15 +2344,67 @@ function renderPay() {
   }
   $("pct-warn").hidden = p.pctSum === 100;
   $("pct-warn").textContent = p.pctSum === 100 ? "" : `Les parts font ${fmt2(p.pctSum)} % au lieu de 100 % : les gains sont répartis au prorata, ajuste une place pour retomber sur 100 %.`;
-  const bpn = $("bounty-panel"); bpn.hidden = !S.entries.length;
+  const bpn = $("bounty-panel"); bpn.hidden = !S.entries.length; renderMysPanel();
   const mys = S.bountyMode === "mystery", pko = S.bountyMode === "pko", bm = S.bountyMode !== "none";
-  $("ledger-hint").textContent = !bm ? "Gain de chaque joueur selon sa place." : mys ? "En mystery bounty, chaque KO donne droit à un tirage de prime." : `Chaque entrée et chaque recave met ${fmt2(S.bounty)} € sur la tête du joueur. Le vainqueur garde aussi sa propre prime. Une élimination sans éliminateur choisi ne rapporte la prime à personne.`;
+  $("ledger-hint").textContent = !bm ? "Gain de chaque joueur selon sa place." : mys ? "En mystery bounty, chaque élimination fait tourner la roulette : l'éliminateur touche tout de suite l'enveloppe tirée. Le vainqueur récupère les enveloppes restantes." : `Chaque entrée et chaque recave met ${fmt2(S.bounty)} € sur la tête du joueur. Le vainqueur garde aussi sa propre prime. Une élimination sans éliminateur choisi ne rapporte la prime à personne.`;
   if (S.entries.length) {
     const rows = ledger(S, R).sort((a, b) => (b.total - a.total) || ((a.place || 99) - (b.place || 99)) || (b.kos - a.kos));
-    $("bountytable").innerHTML = `<thead><tr><th>Joueur</th><th>Place</th>${bm ? "<th>KO</th>" : ""}${pko ? "<th>Prime sur sa tête</th>" : ""}${bm ? `<th>${mys ? "Tirages" : "Primes"}</th>` : ""}<th>Gain place</th><th>Total gagné</th></tr></thead><tbody>` +
-      rows.map(x => `<tr><td>${esc(x.pl.pseudo)}</td><td>${x.place ? x.place + (x.place === 1 ? "er" : "e") : "en jeu"}</td>${bm ? `<td>${x.kos}</td>` : ""}${pko ? `<td>${x.head != null ? fmt2(x.head) + " €" : "–"}</td>` : ""}${bm ? `<td>${mys ? x.kos : fmt2(x.bounty) + " €"}</td>` : ""}<td>${x.prize ? fmt(x.prize) + " €" : "–"}</td><td><b>${fmt2(x.total)} €</b></td></tr>`).join("") + "</tbody>";
+    $("bountytable").innerHTML = `<thead><tr><th>Joueur</th><th>Place</th>${bm ? "<th>KO</th>" : ""}${pko ? "<th>Prime sur sa tête</th>" : ""}${bm ? "<th>Primes</th>" : ""}<th>Gain place</th><th>Total gagné</th></tr></thead><tbody>` +
+      rows.map(x => `<tr><td>${esc(x.pl.pseudo)}</td><td>${x.place ? x.place + (x.place === 1 ? "er" : "e") : "en jeu"}</td>${bm ? `<td>${x.kos}</td>` : ""}${pko ? `<td>${x.head != null ? fmt2(x.head) + " €" : "–"}</td>` : ""}${bm ? `<td>${fmt2(x.bounty) + " €"}</td>` : ""}<td>${x.prize ? fmt(x.prize) + " €" : "–"}</td><td><b>${fmt2(x.total)} €</b></td></tr>`).join("") + "</tbody>";
   }
 }
+
+/* ---------- Mystery bounty : la roulette ---------- */
+function renderMysPanel() {
+  const el = $("mys-panel"), on = S.bountyMode === "mystery"; el.hidden = !on; if (!on) return;
+  const d = mysDeck(S, R), spent = r2(d.drawn.reduce((a, b) => a + b, 0)), top = d.left.length ? Math.max(...d.left) : null;
+  const grp = Object.entries(d.left.reduce((o, v) => (o[v] = (o[v] || 0) + 1, o), {})).sort((a, b) => b[0] - a[0]);
+  $("mys-hint").innerHTML = `Cagnotte des primes : <b>${fmt2(d.pool)} €</b>, répartie en ${d.n} enveloppe${d.n > 1 ? "s" : ""} (une par élimination, le vainqueur n'est pas éliminé).`
+    + (d.drawn.length ? ` ${d.drawn.length} déjà tirée${d.drawn.length > 1 ? "s" : ""} (${fmt2(spent)} €).` : "")
+    + ` Il reste <b>${fmt2(d.rest)} €</b> en ${d.left.length} enveloppe${d.left.length > 1 ? "s" : ""}. Le montant s'ajuste tout seul si des joueurs s'inscrivent ou recavent.`;
+  $("mys-chips").innerHTML = grp.length ? grp.map(([v, c]) => `<span class="mchip${+v === top && c === 1 ? " top" : ""}"><b>${fmt2(+v)} €</b>${c > 1 ? ` × ${c}` : +v === top && d.left.length > 1 ? " · gros lot" : ""}</span>`).join("") : `<p class="hint">Toutes les enveloppes ont été tirées.</p>`;
+}
+let mysAnim = 0;
+function runMystery() {
+  const box = $("mys"); if (!box.hidden || !mysQueue.length || !S) return;
+  const q = mysQueue.shift(), top = Math.max(...q.deck);
+  let segs = q.deck.length <= 24 ? q.deck.map(v => ({ v, w: 1 })) : Object.entries(q.deck.reduce((o, v) => (o[v] = (o[v] || 0) + 1, o), {})).map(([v, w]) => ({ v: +v, w }));
+  segs.sort((a, b) => b.v - a.v); const mix = []; while (segs.length) { mix.push(segs.shift()); if (segs.length) mix.push(segs.pop()); } segs = mix; // gros et petits montants alternés
+  const tot = segs.reduce((a, x) => a + x.w, 0); let acc = 0;
+  segs.forEach((x, i) => { x.a0 = acc / tot * 360; acc += x.w; x.a1 = acc / tot * 360; x.col = x.v === top ? "#ffcf4a" : i % 2 ? "#3a1454" : "#8f22d6"; });
+  if (segs.length > 1 && segs[segs.length - 1].col === segs[0].col && segs[0].col !== "#ffcf4a") segs[segs.length - 1].col = "#5d1c8a";
+  const w = $("wheel");
+  w.style.transition = "none"; w.style.transform = "rotate(0deg)";
+  w.style.background = segs.length === 1 ? segs[0].col : `conic-gradient(${segs.map(x => `${x.col} ${x.a0.toFixed(2)}deg ${x.a1.toFixed(2)}deg`).join(",")})`;
+  w.style.setProperty("--wf", segs.length > 16 ? "clamp(11px, 2.3vmin, 15px)" : segs.length > 10 ? "clamp(13px, 2.8vmin, 19px)" : "clamp(15px, 3.6vmin, 24px)");
+  w.innerHTML = segs.map(x => `<span style="transform:rotate(${((x.a0 + x.a1) / 2).toFixed(2)}deg)"><b class="${x.v === top ? "gold" : ""}">${fmt2(x.v)} €</b></span>`).join("");
+  $("mys-who").innerHTML = `<b>${esc(pOf(q.killer, S).pseudo)}</b> élimine <b>${esc(pOf(q.victim, S).pseudo)}</b>`;
+  const res = $("mys-res"); res.textContent = "La roulette tourne…"; res.classList.remove("pop"); $("mys-ok").hidden = true;
+  box.hidden = false;
+  const cand = segs.filter(x => x.v === q.v), seg = cand[Math.floor(Math.random() * cand.length)] || segs[0];
+  const mid = (seg.a0 + seg.a1) / 2 + (Math.random() - .5) * (seg.a1 - seg.a0) * .6, turn = 360 * 7 + (360 - mid);
+  void w.offsetWidth;
+  w.style.transition = "transform 5.2s cubic-bezier(.12,.65,.1,1)"; w.style.transform = `rotate(${turn.toFixed(2)}deg)`;
+  const id = ++mysAnim; let last = -1;
+  const tick = () => {
+    if (id !== mysAnim) return;
+    const m = new DOMMatrix(getComputedStyle(w).transform), ang = (Math.atan2(m.b, m.a) * 180 / Math.PI + 360) % 360, at = (360 - ang) % 360;
+    const i = segs.findIndex(x => at >= x.a0 && at < x.a1);
+    if (i !== last) { if (last !== -1) tone(1500, 0, .035, "square", .05); last = i; }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  const done = () => {
+    if (id !== mysAnim) return; mysAnim++;
+    const big = q.v === top && q.deck.filter(x => x === top).length === 1 && q.deck.length > 1;
+    res.innerHTML = `${big ? "🏆 GROS LOT ! " : ""}${esc(pOf(q.killer, S).pseudo)} gagne <em>${fmt2(q.v)} €</em>`;
+    res.classList.add("pop"); $("mys-ok").hidden = false; $("mys-ok").focus();
+    if (big) SFX.level(); else { tone(784, 0, .25, "triangle", .25); tone(1047, .12, .45, "triangle", .3); }
+  };
+  w.addEventListener("transitionend", done, { once: true });
+  setTimeout(done, 5600);
+}
+function closeMystery() { mysAnim++; $("mys").hidden = true; setTimeout(runMystery, 250); }
 
 /* ---------- Inscrits ---------- */
 function renderInscrits() {
@@ -2433,9 +2577,9 @@ function bindCreate() {
     base.rebuy = $("n-rebuy").checked; base.reentry = $("n-reentry").checked; base.addon = $("n-addon").checked; base.antes = $("n-antes").checked;
     base.players = Math.max(2, Math.round(num($("n-players").value, 8)));
     base.duration = Math.max(0.5, num($("n-duration").value, 4));
-    base.pay.buyin = Math.max(0, num($("n-buyin").value, 10));
+    base.pay.buyin = Math.max(0, num($("n-buyin").value, 20));
     if (base.pay.rebuySync !== false) base.pay.rebuy = base.pay.buyin;
-    base.bounty = Math.max(0, num($("n-bounty").value, 5));
+    base.bounty = Math.max(0, num($("n-bounty").value, 10));
     Store.put("tournaments", base.id, base, 0);
     tab = "horloge";
     location.hash = "t-" + base.id;
@@ -2666,6 +2810,7 @@ $("t-filter").addEventListener("input", () => renderAccueil());
 try { tab = sessionStorage.getItem("croupier-tab") || "horloge"; } catch (e) {}
 $("sync-btn").addEventListener("click", () => { renderSyncDlg(); $("sync-dlg").showModal(); });
 $("sync-close").addEventListener("click", () => $("sync-dlg").close());
+$("mys-ok").addEventListener("click", closeMystery);
 renderSync();
 route();
 Store.init();
