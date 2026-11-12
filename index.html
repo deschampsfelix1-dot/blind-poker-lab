@@ -669,7 +669,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
         <label class="opt"><input type="radio" name="bmode" value="none"><b>Classique</b><span>Pas de prime : la cagnotte va aux meilleurs classements.</span></label>
         <label class="opt"><input type="radio" name="bmode" value="fixed"><b>Bounty (KO)</b><span>Une prime fixe sur la tête de chaque joueur, touchée par celui qui l'élimine.</span></label>
         <label class="opt"><input type="radio" name="bmode" value="pko"><b>Bounty progressif</b><span>Tu touches la moitié de la prime de ta victime (arrondie à 5 €), l'autre moitié s'ajoute à la tienne.</span></label>
-        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>À chaque élimination, une roulette tire une prime au hasard parmi les enveloppes : un gros lot, des primes plus petites (par dizaines) et quelques enveloppes vides.</span></label>
+        <label class="opt"><input type="radio" name="bmode" value="mystery"><b>Mystery bounty</b><span>À chaque élimination, une roulette tire une prime au hasard parmi les enveloppes : un gros lot, puis des primes plus petites, toujours par dizaines.</span></label>
       </div>
 
       <h3>Options</h3>
@@ -1401,10 +1401,10 @@ function mysFix(a, target) {
   return a.sort((x, y) => y - x);
 }
 // n enveloppes pour une cagnotte « pool » : un gros lot, puis des montants qui diminuent (poids 1, 1/2, 1/3…)
-// Par dizaines, il n'y a pas assez dans la cagnotte pour un gros lot si chaque élimination gagne : environ une enveloppe sur trois est vide.
+// Chaque élimination gagne au moins 10 € ; une enveloppe n'est vide que si la cagnotte ne permet pas 10 € pour tout le monde.
 function mysPlan(n, pool) {
   n = Math.max(0, Math.floor(n)); if (!n) return [];
-  const full = Math.max(1, Math.min(n - Math.floor(n / 3), Math.floor(pool / 10)));
+  const full = Math.max(1, Math.min(n, Math.floor(pool / 10)));
   const H = Array.from({ length: full }, (_, i) => 1 / (i + 1)), sh = H.reduce((a, b) => a + b, 0);
   const near = v => MYS_STEPS.reduce((b, s) => Math.abs(s - v) < Math.abs(b - v) ? s : b, 10);
   return mysFix(H.map(w => near(pool * w / sh)), Math.max(0, pool)).concat(Array(n - full).fill(0));
@@ -2434,6 +2434,9 @@ function renderMysPanel() {
   $("mys-chips").innerHTML = grp.length ? grp.map(([v, c]) => `<span class="mchip${+v === top && c === 1 ? " top" : ""}"><b>${+v ? fmt2(+v) + " €" : "Vide"}</b>${c > 1 ? ` × ${c}` : +v === top && d.left.length > 1 ? " · gros lot" : ""}</span>`).join("") : `<p class="hint">Toutes les enveloppes ont été tirées.</p>`;
 }
 let mysAnim = 0;
+// en plein écran (navigateur), seul le bloc mis en plein écran est affiché : on y place la roulette et le podium
+function onTop(el) { const host = document.fullscreenElement || document.body; if (el.parentNode !== host) host.appendChild(el); }
+document.addEventListener("fullscreenchange", () => ["mys", "podium"].forEach(id => { const el = $(id); if (el && !el.hidden) onTop(el); }));
 function runMystery() {
   const box = $("mys"); if (!box.hidden || !mysQueue.length || !S) return;
   const q = mysQueue.shift(), top = Math.max(...q.deck);
@@ -2449,7 +2452,7 @@ function runMystery() {
   w.innerHTML = segs.map(x => `<span style="transform:rotate(${((x.a0 + x.a1) / 2).toFixed(2)}deg)"><b class="${x.v === top ? "gold" : ""}">${x.v ? fmt2(x.v) + " €" : "Vide"}</b></span>`).join("");
   $("mys-who").innerHTML = `<b>${esc(pOf(q.killer, S).pseudo)}</b> élimine <b>${esc(pOf(q.victim, S).pseudo)}</b>`;
   const res = $("mys-res"); res.textContent = "La roulette tourne…"; res.classList.remove("pop"); $("mys-ok").hidden = true;
-  box.hidden = false;
+  onTop(box); box.hidden = false;
   const cand = segs.filter(x => x.v === q.v), seg = cand[Math.floor(Math.random() * cand.length)] || segs[0];
   const mid = (seg.a0 + seg.a1) / 2 + (Math.random() - .5) * (seg.a1 - seg.a0) * .6, turn = 360 * 7 + (360 - mid);
   void w.offsetWidth;
@@ -2514,7 +2517,7 @@ function showPodium() {
       return `<div class="pf-col" style="--w:${W[i]};--d:${D[i]}s;--c:${PF_COLORS[i]};--h:${H[i]}"><div class="pf-hero">${pfFigure(i)}<div class="pf-head">${avatar(x.pl, "lg")}</div></div>
         <div class="pf-name">${esc(x.pl.pseudo)}</div><div class="pf-amt">${x.total ? fmt2(x.total) + " €" : ""}</div><div class="pf-step"><b>${x.place}</b></div></div>`; }).join("")}</div>
     <p class="pf-hint">Touche l'écran pour fermer</p>`;
-  box.hidden = false;
+  onTop(box); box.hidden = false;
   setTimeout(() => { try { SFX.level(); } catch (e) {} }, 900);
   const cv = $("pf-cv"), ctx = cv.getContext("2d"), dpr = Math.min(2, window.devicePixelRatio || 1);
   const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }; size();
