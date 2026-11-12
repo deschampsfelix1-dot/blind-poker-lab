@@ -1028,15 +1028,18 @@ const Cloud = {
     const code = this.code(); if (!code || this.busy) return;
     this.busy = true;
     try {
-      // 1. envoyer ce qui attend, document par petits lots : un envoi refusé ne bloque ni les autres, ni la réception
-      const box = this.outbox(), keys = Object.keys(box); let pushErr = null;
+      // 1. envoyer ce qui attend, document par petits lots : un envoi refusé ne bloque ni les autres, ni la réception.
+      // Les envois « en bloc » (relier l'appareil, tout récupérer) partent après la lecture du serveur : ce qui a été supprimé ailleurs n'est pas renvoyé.
+      let pushErr = null;
+      const push = async bulk => { const box = this.outbox(), keys = Object.keys(box).filter(k => bulk || !box[k].bulk);
       for (let i = 0; i < keys.length; i += 20) {
         const part = keys.slice(i, i + 20), sent = part.map(k => box[k]);
         try { await this.rpc("bpl_push", { p_code: code, p_docs: sent }); }
         catch (e) { if (!e.status) throw e; pushErr = e; continue; } // pas de réseau : on réessaiera
         part.forEach((k, j) => { if (this.outbox()[k] === sent[j]) delete this.outbox()[k]; }); // gardé s'il a changé entre-temps
         this.saveOut();
-      }
+      } };
+      await push(false);
       // 2. récupérer les changements des autres appareils
       let since = this.since(), changed = {};
       for (let guard = 0; guard < 50; guard++) {
@@ -1044,7 +1047,9 @@ const Cloud = {
         if (!rows.length) break;
         rows.forEach(r => {
           since = Math.max(since, Number(r.rev));
-          if (this.outbox()[r.col + "/" + r.id]) return; // un changement local plus récent attend d'être envoyé
+          const ob = this.outbox()[r.col + "/" + r.id];
+          if (ob && !(ob.bulk && r.deleted)) return; // un changement local plus récent attend d'être envoyé
+          if (ob) { delete this.outbox()[r.col + "/" + r.id]; this.saveOut(); } // supprimé sur un autre appareil : on ne le renvoie pas
           const key = this.cols[r.col]; if (!key) return;
           if (r.deleted) { if (Store[key][r.id]) { delete Store[key][r.id]; changed[r.col] = 1; } return; }
           if (JSON.stringify(Store[key][r.id]) !== JSON.stringify(r.data)) { Store[key][r.id] = r.data; changed[r.col] = 1; }
@@ -1054,6 +1059,7 @@ const Cloud = {
       this.ls("bpl-since", String(since));
       const cs = Object.keys(changed);
       if (cs.length) { Store.saveLocal(); cs.forEach(c => Store.onChange(c)); }
+      await push(true);
       if (pushErr) throw pushErr;
       this.set(Object.keys(this.outbox()).length ? "sync" : "ok");
     } catch (e) {
@@ -1070,13 +1076,13 @@ const Cloud = {
       Store.mode = "local"; Store.assets = null; Store.saveLocal();
     }
     this._code = code; this.ls("bpl-club", code); this.ls("bpl-since", "0");
-    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false }; }));
+    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false, bulk: true }; }));
     this.saveOut(); this.start(); return true;
   },
   // tout renvoyer et tout récupérer depuis le début (en cas de doute)
   resync() {
     if (!this.code()) return;
-    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d && !this.outbox()[col + "/" + id]) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false }; }));
+    Object.entries(this.cols).forEach(([col, key]) => Object.entries(Store[key]).forEach(([id, d]) => { if (d && !this.outbox()[col + "/" + id]) this.outbox()[col + "/" + id] = { col, id, data: d, deleted: false, bulk: true }; }));
     this.saveOut(); this.ls("bpl-since", "0"); this.set("sync"); this.sync();
   },
   disconnect() { this.stop(); this._code = ""; this.ls("bpl-club", null); this.ls("bpl-since", null); this.out = {}; this.saveOut(); renderSync(); }
@@ -2686,7 +2692,9 @@ function leaderData(per) {
       o.res.push({ ti, place: x.place, won: x.total, net: x.total - x.paid });
     });
   });
-  const players = Object.values(P).map(o => Object.assign(o, { net: o.won - o.paid, itmPct: o.played ? o.itm / o.played : 0, avgPlace: o.played ? o.placeSum / o.played : 0, pl: pOf(o.pid) }));
+  // un joueur supprimé disparaît du classement (ses tournois restent comptés pour les autres)
+  const players = Object.values(P).filter(o => Store.P[o.pid]).map(o => Object.assign(o, { net: o.won - o.paid, itmPct: o.played ? o.itm / o.played : 0, avgPlace: o.played ? o.placeSum / o.played : 0, pl: pOf(o.pid) }));
+  tours.forEach(x => { if (x.win && !Store.P[x.win.e.pid]) x.win = null; });
   return { tours, players };
 }
 const eur = v => `${fmt2(Math.round(v * 100) / 100)} €`;
