@@ -853,6 +853,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
         <p class="hint" id="dist-hint"></p>
         <div class="dist" id="dist"></div>
         <h3>Total à sortir de la mallette</h3>
+        <p class="hint" id="need-hint"></p>
         <div class="dist" id="need"></div>
       </div>
     </div>
@@ -1379,17 +1380,33 @@ function compute(s) {
   return { chips, small, sb0, stack, levelMin, N, steps, reentries, rebuys, addons, reentryChips, rebuyChips, addonChips, totalChips, levels, endMin, lastBB, auto, warns, P, totalMin };
 }
 
-function distribute(amount, chips) {
+// répartition d'un tapis en jetons : assez de petits jetons pour payer les premières blindes,
+// quelques jetons de chaque valeur intermédiaire, le gros du tapis en grosses valeurs ; total exact
+function distribute(amount, chips, sb0) {
+  chips = [...new Set(chips)].filter(c => c > 0).sort((a, b) => a - b);
   if (!chips.length || amount <= 0) return [];
-  const elig = chips.filter(c => c <= amount / 3);
-  const use = elig.length ? [...new Set([elig[0], ...elig.slice(-3)])].sort((a, b) => a - b) : [chips[0]];
-  const w = use.map((_, i) => (i + 1) * (i + 1));
-  const wsum = w.reduce((a, b) => a + b, 0);
-  const counts = use.map((c, i) => Math.floor((amount * w[i] / wsum) / c));
-  counts.forEach((n, i) => { if (n >= 10) counts[i] = n - (n % 2); });
-  let rest = amount - counts.reduce((a, n, i) => a + n * use[i], 0);
-  for (let i = use.length - 1; i >= 0; i--) { const k = Math.floor(rest / use[i]); counts[i] += k; rest -= k * use[i]; }
-  return use.map((c, i) => ({ c, n: counts[i] })).filter(x => x.n > 0).concat(rest > 0 ? [{ c: "reste", n: rest }] : []);
+  const sb = Math.max(chips[0], sb0 || chips[0]);
+  // valeurs utiles : pas de jeton qui vaut plus d'un quart du tapis ; au plus 6 valeurs (les 2 plus petites + les 4 plus grosses)
+  let use = chips.filter(c => c <= amount / 4); if (!use.length) use = [chips[0]];
+  if (use.length > 6) use = [use[0], use[1], ...use.slice(-4)];
+  const k = use.length, n = Array(k).fill(0); let left = amount;
+  const even = x => x >= 6 ? x - (x % 2) : x;
+  const take = (i, want, lo, hi) => { let c = Math.round(want / use[i]); c = even(Math.max(lo, Math.min(hi, c))); c = Math.min(c, Math.floor(left / use[i])); n[i] += c; left -= c * use[i]; };
+  if (k === 1) { n[0] = Math.floor(amount / use[0]); left = amount - n[0] * use[0]; }
+  else {
+    // petits jetons : de quoi payer une dizaine de petites blindes, puis une dizaine de grosses
+    // petits jetons : 10 de chacune des deux plus petites valeurs (6 seulement si la petite blinde de départ est déjà plus grosse)
+    take(0, (sb > use[0] && k >= 3 && sb >= use[1] ? 6 : 10) * use[0], 4, 20);
+    if (k >= 3) take(1, 10 * use[1], 4, 20);
+    // valeurs intermédiaires : environ 10 % du tapis chacune
+    for (let i = 2; i < k - 2; i++) take(i, amount * 0.1, 2, 20);
+    // les deux plus grosses valeurs se partagent le reste (environ 1/3 - 2/3)
+    if (k >= 4) take(k - 2, left / 3, 2, 40);
+    const top = k - 1; const c = Math.floor(left / use[top]); n[top] += c; left -= c * use[top];
+    // le reste (moins qu'un gros jeton) : en descendant les valeurs
+    for (let i = k - 2; i >= 0 && left > 0; i--) { const c2 = Math.floor(left / use[i]); n[i] += c2; left -= c2 * use[i]; }
+  }
+  return use.map((c, i) => ({ c, n: n[i] })).filter(x => x.n > 0).concat(left > 0 ? [{ c: "reste", n: left }] : []);
 }
 
 /* ================= Joueurs inscrits, gains ================= */
@@ -1764,15 +1781,20 @@ function renderStructure() {
   }));
   $("b-clearedits").hidden = !Object.keys(S.edits).length;
 
-  const d = distribute(r.stack, r.chips);
-  $("dist-hint").textContent = `Pour un tapis de ${fmt(r.stack)}, chaque joueur reçoit ${d.filter(x => x.c !== "reste").reduce((a, x) => a + x.n, 0)} jetons :`;
+  const d = distribute(r.stack, r.chips, r.sb0), nChips = d.filter(x => x.c !== "reste").reduce((a, x) => a + x.n, 0);
+  $("dist-hint").textContent = `Pour un tapis de ${fmt(r.stack)}, chaque joueur reçoit ${nChips} jetons :`;
   $("dist").innerHTML = d.map(x => x.c === "reste" ? `<div class="warn">Reste ${x.n} impossible à faire avec ces jetons</div>` : `<div>${chipSVG(chipOf(S, x.c), 30)}<span><b>${x.n}</b> × ${fmt(x.c)}<small>= ${fmt(x.n * x.c)}</small></span></div>`).join("");
-  const need = {};
-  const addD = (amount, times) => distribute(amount, r.chips).forEach(x => { if (x.c !== "reste") need[x.c] = (need[x.c] || 0) + x.n * times; });
-  addD(r.stack, r.P); addD(r.reentryChips, r.reentries); addD(r.rebuyChips, r.rebuys); addD(r.addonChips, r.addons);
-  $("need").innerHTML = Object.keys(need).map(Number).sort((a, b) => a - b).map(c => {
-    const own = S.owned[c]; const short = own != null && own < need[c];
-    return `<div class="${short ? "warn" : ""}">${chipSVG(chipOf(S, c), 30)}<span><b>${need[c]}</b> jetons de ${fmt(c)}<small>${own != null ? (short ? `il en manque ${need[c] - own}` : `tu en as ${own}, ça suffit`) : "pour toutes les entrées prévues"}</small></span></div>`;
+  // à sortir de la mallette : les tapis de départ des joueurs (les inscrits s'il y en a, sinon les joueurs prévus),
+  // plus, à part, une réserve pour les recaves, re-entrées et add-ons prévus
+  const P0 = S.entries.length || r.P, start = {}, res = {}, resWhat = [];
+  d.forEach(x => { if (x.c !== "reste") start[x.c] = x.n * P0; });
+  const addR = (amount, times, label) => { if (!times || !amount) return; resWhat.push(`${times} ${label}`); distribute(amount, r.chips, r.sb0).forEach(x => { if (x.c !== "reste") res[x.c] = (res[x.c] || 0) + x.n * times; }); };
+  addR(r.reentryChips, r.reentries, r.reentries > 1 ? "re-entrées" : "re-entrée"); addR(r.rebuyChips, r.rebuys, r.rebuys > 1 ? "recaves" : "recave"); addR(r.addonChips, r.addons, r.addons > 1 ? "add-ons" : "add-on");
+  $("need-hint").textContent = `${P0} joueur${P0 > 1 ? "s" : ""} × ${nChips} jetons = ${fmt(P0 * nChips)} jetons pour le départ` + (resWhat.length ? `, plus une réserve pour ${resWhat.join(", ")} prévus.` : ".");
+  $("need").innerHTML = [...new Set([...Object.keys(start), ...Object.keys(res)].map(Number))].sort((a, b) => a - b).map(c => {
+    const st = start[c] || 0, rv = res[c] || 0, tot = st + rv, own = S.owned[c], short = own != null && own < tot;
+    const det = rv ? `${st} pour le départ + ${rv} en réserve` : `pour les ${P0} tapis de départ`;
+    return `<div class="${short ? "warn" : ""}">${chipSVG(chipOf(S, c), 30)}<span><b>${tot}</b> jetons de ${fmt(c)}<small>${det}${own != null ? (short ? ` · il en manque ${tot - own}` : ` · tu en as ${own}, ça suffit`) : ""}</small></span></div>`;
   }).join("");
 }
 
