@@ -66,8 +66,8 @@ header.top .wrap { display: flex; align-items: center; gap: 12px 16px; flex-wrap
 .podium-fx canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .podium-fx .pf-rays { position: absolute; left: 50%; top: 58%; width: 160vmax; height: 160vmax; transform: translate(-50%, -50%); background: repeating-conic-gradient(rgba(255, 207, 74, .07) 0 8deg, transparent 8deg 20deg); animation: pfspin 40s linear infinite; pointer-events: none; }
 @keyframes pfspin { to { transform: translate(-50%, -50%) rotate(360deg); } }
-.pf-title { position: relative; margin: 0; text-align: center; font: 800 clamp(30px, 7vmin, 72px) var(--display); text-transform: uppercase; letter-spacing: .04em; color: #ffcf4a; text-shadow: 0 0 24px rgba(255, 207, 74, .55); animation: pfdrop .7s cubic-bezier(.2, 1.4, .4, 1) both; }
-.pf-title small { display: block; font: 600 clamp(14px, 2.6vmin, 22px) var(--body); letter-spacing: 0; text-transform: none; color: var(--brass); text-shadow: none; margin-top: 4px; }
+.pf-title { position: relative; margin: 0; text-align: center; font: 800 clamp(36px, 8.5vmin, 88px) var(--display); text-transform: uppercase; letter-spacing: .04em; color: #ffcf4a; text-shadow: 0 0 24px rgba(255, 207, 74, .55); animation: pfdrop .7s cubic-bezier(.2, 1.4, .4, 1) both; }
+.pf-title small { display: block; font: 600 clamp(17px, 3.3vmin, 30px) var(--body); letter-spacing: 0; text-transform: none; color: var(--brass); text-shadow: none; margin-top: 4px; }
 @keyframes pfdrop { from { transform: translateY(-60px); opacity: 0; } }
 .pf-stage { position: relative; align-self: end; display: flex; align-items: flex-end; justify-content: center; gap: clamp(6px, 1.6vmin, 18px); width: 100%; max-width: 1100px; }
 .pf-col { display: flex; flex-direction: column; align-items: center; width: var(--w); animation: pfrise .8s cubic-bezier(.2, 1.2, .4, 1) both; animation-delay: var(--d); }
@@ -80,10 +80,15 @@ header.top .wrap { display: flex; align-items: center; gap: 12px 16px; flex-wrap
 @keyframes pfcup { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
 .pf-head { position: absolute; left: 50%; top: 39%; width: 66%; transform: translate(-50%, -50%); aspect-ratio: 1; border-radius: 50%; border: clamp(3px, .6vmin, 6px) solid var(--c); box-shadow: 0 0 0 2px rgba(0, 0, 0, .55), 0 0 26px var(--c), 0 8px 24px rgba(0, 0, 0, .6); background: var(--c); z-index: 1; }
 .pf-head .av, .pf-head .av.lg { display: grid; width: 100%; height: 100%; font-size: clamp(22px, 6vmin, 56px); border: 0; }
-.pf-name { margin-top: 6px; font: 800 clamp(15px, 2.8vmin, 28px) var(--display); color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pf-amt { font: 800 clamp(16px, 3.2vmin, 32px) var(--display); color: var(--c); }
+.pf-name { margin-top: 6px; font: 800 clamp(18px, 3.5vmin, 36px) var(--display); color: var(--ink); text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-amt { font: 800 clamp(21px, 4.4vmin, 46px) var(--display); color: var(--c); }
+.pf-phrase { min-height: 1.3em; max-width: 100%; margin-top: 2px; font: italic 500 clamp(11px, 1.9vmin, 18px)/1.25 var(--body); color: #f1e6ff; text-align: center; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tw::after { content: "▍"; margin-left: 1px; color: var(--felt); animation: twblink .8s steps(1) infinite; }
+.tw.done::after { animation-iteration-count: 4; animation-fill-mode: forwards; }
+@keyframes twblink { 50% { opacity: 0; } }
+@media (max-height: 500px) { .pf-title { font-size: 30px; } .pf-title small { font-size: 15px; margin-top: 0; } .pf-name { font-size: 17px; margin-top: 2px; } .pf-amt { font-size: 19px; } .pf-phrase { font-size: 11px; -webkit-line-clamp: 2; } .pf-step b { font-size: 24px; } .podium-fx { padding-block: 8px 4px; } .pf-col { width: calc(var(--w) * 1.6); } .pf-hero { width: 50%; } }
 .pf-step { width: 100%; height: var(--h); margin-top: 6px; border-radius: 10px 10px 0 0; display: grid; place-items: start center; padding-top: 6px; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 55%, #2a0f3d) 0%, #2a0f3d 70%, #14061f 100%); border: 2px solid var(--c); border-bottom: 0; box-shadow: 0 0 26px color-mix(in srgb, var(--c) 45%, transparent); }
-.pf-step b { font: 800 clamp(26px, 6vmin, 64px) var(--display); color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
+.pf-step b { font: 800 clamp(30px, 7vmin, 76px) var(--display); color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
 .pf-hint { position: relative; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
 .timebtn.podbtn { letter-spacing: .12em; padding: 12px 34px 14px; border-color: #ffe39a; background: linear-gradient(180deg, #ffe08a 0%, #f0b429 50%, #b97c06 100%); color: #2a1400; text-shadow: 0 1px 0 rgba(255, 255, 255, .5); box-shadow: 0 8px 0 #6b4300, 0 10px 18px rgba(0, 0, 0, .6), 0 0 26px rgba(255, 207, 74, .7), inset 0 2px 0 rgba(255, 255, 255, .5); }
 @media (prefers-reduced-motion: reduce) { .podium-fx *, .podium-fx { animation: none !important; } }
@@ -180,6 +185,7 @@ tr.cur td { background: var(--sunk); }
 .zoom img { width: min(82vw, 72vh, 560px); height: min(82vw, 72vh, 560px); object-fit: cover; border-radius: 24px; border: 3px solid var(--felt); box-shadow: var(--glow), 0 20px 60px rgba(0, 0, 0, .6); }
 .zoom figcaption { font: 800 clamp(24px, 5vmin, 44px) var(--display); color: #fff; text-align: center; }
 .zoom-x { margin: 0; font-size: 13px; color: var(--muted); }
+.zoom-phrase { margin: -4px 0 0; max-width: min(90vw, 620px); min-height: 1.4em; font: italic 500 clamp(17px, 3.4vmin, 26px)/1.35 var(--body); color: #f1e6ff; text-align: center; overflow-wrap: anywhere; }
 @keyframes zin { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 .entry img.av, .pcard img.av, .pick img.av { cursor: zoom-in; }
 .av { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--felt); color: var(--felt-ink); display: inline-grid; place-items: center; font: 800 18px var(--display); flex: none; overflow: hidden; }
@@ -661,7 +667,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
   <div id="storenote"></div>
   <dialog id="sync-dlg" aria-labelledby="sync-title"><div class="sync-head"><h3 id="sync-title">Mémoire commune</h3><button class="btn ghost small" id="sync-close">Fermer</button></div><div id="sync-body"></div></dialog>
   <div class="podium-fx" id="podium" hidden role="dialog" aria-modal="true" aria-label="Podium du tournoi"></div>
-  <div class="zoom" id="zoom" hidden role="dialog" aria-modal="true" aria-label="Photo du joueur"><figure><img id="zoom-img" alt=""><figcaption id="zoom-name"></figcaption></figure><p class="zoom-x">Touche n'importe où pour fermer</p></div>
+  <div class="zoom" id="zoom" hidden role="dialog" aria-modal="true" aria-label="Photo du joueur"><figure><img id="zoom-img" alt=""><figcaption id="zoom-name"></figcaption><p class="zoom-phrase" id="zoom-phrase"></p></figure><p class="zoom-x">Touche n'importe où pour fermer</p></div>
   <div class="mys" id="mys" hidden role="dialog" aria-modal="true" aria-labelledby="mys-t"><div class="mys-box"><p class="mys-t" id="mys-t">Mystery bounty</p><p class="mys-who" id="mys-who"></p><div class="wheel-wrap"><div class="wheel-pin"></div><div class="wheel" id="wheel"></div></div><p class="mys-res" id="mys-res" aria-live="assertive"></p><button class="btn" id="mys-ok" hidden>Continuer</button></div></div>
   <p id="loading" class="hint">Chargement de tes tournois…</p>
 
@@ -2603,11 +2609,22 @@ document.addEventListener("click", e => {
   if (!img) return;
   e.preventDefault(); e.stopPropagation();
   const card = img.closest(".entry, .pcard, .pick"), b = card && card.querySelector("b");
+  const ph = card && card.querySelector(".phrase");
   $("zoom-img").src = img.src; $("zoom-name").textContent = b ? b.textContent : "";
   const z = $("zoom"); onTop(z); z.hidden = false;
+  typeOut($("zoom-phrase"), phraseOf(ph ? ph.textContent : ""), 350);
 }, true);
-$("zoom").addEventListener("click", () => { $("zoom").hidden = true; });
+$("zoom").addEventListener("click", () => { $("zoom").hidden = true; clearTimeout($("zoom-phrase")._tw); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("zoom").hidden) $("zoom").hidden = true; });
+// la phrase du joueur, terminée par un point, tapée lettre par lettre comme à la machine à écrire
+function phraseOf(t) { t = String(t || "").trim(); return !t ? "" : /[.!?…»"]$/.test(t) ? t : t + "."; }
+function typeOut(el, text, delay) {
+  if (!el) return; clearTimeout(el._tw); el.textContent = ""; el.classList.remove("tw", "done"); if (!text) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { el.textContent = text; return; }
+  let i = 0; el.classList.add("tw");
+  const step = () => { if (!el.isConnected) return; i++; el.textContent = text.slice(0, i); if (i < text.length) el._tw = setTimeout(step, /[ ,]/.test(text[i - 1]) ? 90 : 45 + Math.random() * 45); else el.classList.add("done"); };
+  el._tw = setTimeout(step, delay || 0);
+}
 function onTop(el) { const host = document.fullscreenElement || document.body; if (el.parentNode !== host) host.appendChild(el); }
 document.addEventListener("fullscreenchange", () => ["mys", "podium"].forEach(id => { const el = $(id); if (el && !el.hidden) onTop(el); }));
 function runMystery() {
@@ -2680,17 +2697,18 @@ function showPodium() {
   const r = R || compute(S), po = payouts(S, r), L = ledger(S, r).filter(x => x.place).sort((a, b) => a.place - b.place);
   const n = Math.min(5, Math.max(3, po.places)), top = L.slice(0, n); if (!top.length) return;
   const order = [3, 1, 0, 2, 4].filter(i => i < top.length);
-  const W = ["clamp(110px, 22vmin, 220px)", "clamp(92px, 18vmin, 180px)", "clamp(92px, 18vmin, 180px)", "clamp(76px, 14vmin, 140px)", "clamp(76px, 14vmin, 140px)"];
-  const H = ["clamp(90px, 22vh, 220px)", "clamp(64px, 15vh, 150px)", "clamp(46px, 11vh, 110px)", "clamp(30px, 7vh, 70px)", "clamp(24px, 5vh, 52px)"];
+  const W = ["clamp(56px, min(28vmin, 19vh), 210px)", "clamp(48px, min(23vmin, 15.5vh), 172px)", "clamp(48px, min(23vmin, 15.5vh), 172px)", "clamp(40px, min(18vmin, 12vh), 132px)", "clamp(40px, min(18vmin, 12vh), 132px)"];
+  const H = ["clamp(40px, 18vh, 210px)", "clamp(30px, 12.5vh, 145px)", "clamp(22px, 9vh, 105px)", "clamp(16px, 6vh, 66px)", "clamp(14px, 4.5vh, 50px)"];
   const D = [1.1, .7, .4, .15, 0];
   const box = $("podium");
   box.innerHTML = `<div class="pf-rays"></div><canvas id="pf-cv"></canvas>
     <h2 class="pf-title">🏆 Les champions 🏆<small>${esc(S.name)}</small></h2>
     <div class="pf-stage">${order.map(i => { const x = top[i];
       return `<div class="pf-col" style="--w:${W[i]};--d:${D[i]}s;--c:${PF_COLORS[i]};--h:${H[i]}"><div class="pf-hero">${pfFigure(i)}<div class="pf-head">${avatar(x.pl, "lg")}</div></div>
-        <div class="pf-name">${esc(x.pl.pseudo)}</div><div class="pf-amt">${x.total ? fmt2(x.total) + " €" : ""}</div><div class="pf-step"><b>${x.place}</b></div></div>`; }).join("")}</div>
+        <div class="pf-name">${esc(x.pl.pseudo)}</div><div class="pf-phrase" data-ph="${i}"></div><div class="pf-amt">${x.total ? fmt2(x.total) + " €" : ""}</div><div class="pf-step"><b>${x.place}</b></div></div>`; }).join("")}</div>
     <p class="pf-hint">Touche l'écran pour fermer</p>`;
   onTop(box); box.hidden = false;
+  order.forEach(i => typeOut(box.querySelector(`[data-ph="${i}"]`), phraseOf(top[i].pl.phrase), (D[i] + 1.1) * 1000));
   setTimeout(() => { try { SFX.level(); } catch (e) {} }, 900);
   const cv = $("pf-cv"), ctx = cv.getContext("2d"), dpr = Math.min(2, window.devicePixelRatio || 1);
   const size = () => { cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; }; size();
