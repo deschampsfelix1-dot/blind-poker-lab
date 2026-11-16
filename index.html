@@ -204,6 +204,13 @@ tr.cur td { background: var(--sunk); }
 .count { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 8px; }
 .count button { border: none; background: var(--sunk); color: var(--ink); border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-weight: 700; line-height: 1; }
 .badge { font-size: 12px; font-weight: 700; color: var(--brass); }
+.cropper { margin: 6px 0 10px; display: grid; justify-items: center; gap: 8px; }
+.cropper canvas { width: min(280px, 100%); aspect-ratio: 1; border-radius: 14px; background: #000; touch-action: none; cursor: grab; border: 1px solid var(--line); }
+.cropper canvas:active { cursor: grabbing; }
+.crop-ctl { display: flex; align-items: center; gap: 10px; width: min(280px, 100%); color: var(--muted); font-weight: 700; }
+.crop-ctl input { flex: 1; accent-color: var(--felt); }
+.cropper .hint { text-align: center; margin: 0; max-width: 320px; }
+.photobtns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .filebtn { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; position: relative; }
 .filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .filebtn:focus-within .btn { outline: 2px solid var(--brass); outline-offset: 2px; }
@@ -1237,24 +1244,25 @@ function avatar(p, cls = "", out = false) {
 }
 // photo introuvable : on remplace par l'initiale
 document.addEventListener("error", e => { const t = e.target; if (t && t.tagName === "IMG" && t.classList.contains("av") && t.dataset.letter != null) { const s = document.createElement("span"); s.className = t.className; s.textContent = t.dataset.letter; t.replaceWith(s); } }, true);
-async function photoBlob(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const size = 400, cv = document.createElement("canvas"); cv.width = cv.height = size;
-    const s = Math.min(img.naturalWidth, img.naturalHeight);
-    cv.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
-    const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.85));
-    return { blob, dataURL: cv.toDataURL("image/jpeg", 0.8) };
-  } finally { URL.revokeObjectURL(url); }
+// photo de profil : on garde le cadrage choisi en 720 px (WebP si possible, sinon JPEG de bonne qualité)
+// pour qu'elle reste nette quand on l'agrandit
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function photoBlob(crop) {
+  const size = Math.max(256, Math.min(720, Math.round(crop.side))), cv = document.createElement("canvas"); cv.width = cv.height = size;
+  const g = cv.getContext("2d"); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+  g.drawImage(crop.img, crop.cx - crop.side / 2, crop.cy - crop.side / 2, crop.side, crop.side, 0, 0, size, size);
+  let type = "image/webp", dataURL = cv.toDataURL(type, 0.86);
+  if (!dataURL.startsWith("data:image/webp")) { type = "image/jpeg"; dataURL = cv.toDataURL(type, 0.9); }
+  const blob = await new Promise(r => cv.toBlob(r, type, type === "image/webp" ? 0.86 : 0.9));
+  return { blob, dataURL, type };
 }
-async function saveProfile({ id, pseudo, phrase, file }) {
+async function saveProfile({ id, pseudo, phrase, crop }) {
   const prev = id ? Store.P[id] : null;
   const p = Object.assign({ id: id || uid(), createdAt: Date.now() }, prev ? clone(prev) : {}, { pseudo, phrase });
-  if (file) {
-    const { blob, dataURL } = await photoBlob(file);
+  if (crop) {
+    const { blob, dataURL, type } = await photoBlob(crop);
     if (Store.assets) {
-      try { const r = await Store.assets.upload(blob, { type: "image/jpeg" }); p.photo = r.id; delete p.photoData; }
+      try { const r = await Store.assets.upload(blob, { type }); p.photo = r.id; delete p.photoData; }
       catch (e) { p.photoData = dataURL; delete p.photo; }
     } else { p.photoData = dataURL; delete p.photo; }
   }
@@ -2725,13 +2733,43 @@ function profileForm(host, { onSaved, quick }) {
   host.innerHTML = `
     <div class="row" style="grid-template-columns:1fr 2fr"><label for="${p}-pseudo">Pseudo</label><input id="${p}-pseudo" type="text" maxlength="40"></div>
     <div class="row" style="grid-template-columns:1fr 2fr"><label for="${p}-phrase">Sa phrase<span>affichée sous le pseudo</span></label><input id="${p}-phrase" type="text" maxlength="120" placeholder="Ex. « Je ne bluffe jamais. »"></div>
-    <div class="row" style="grid-template-columns:1fr 2fr"><span>Photo</span><label class="filebtn"><span id="${p}-prev">${avatar(null, "lg")}</span><span class="btn ghost small">Choisir une photo</span><input id="${p}-file" type="file" accept="image/*"></label></div>
+    <div class="row" style="grid-template-columns:1fr 2fr"><span>Photo</span><span class="photobtns"><label class="filebtn"><span id="${p}-prev">${avatar(null, "lg")}</span><span class="btn ghost small">Choisir une photo</span><input id="${p}-file" type="file" accept="image/*"></label><button class="btn ghost small" id="${p}-recrop" type="button" hidden>Recadrer</button></span></div>
+    <div class="cropper" id="${p}-crop" hidden><canvas id="${p}-cv" width="560" height="560" aria-label="Recadrage de la photo : fais glisser pour déplacer"></canvas>
+      <div class="crop-ctl"><span aria-hidden="true">−</span><input type="range" id="${p}-zoom" min="1" max="5" step="0.01" value="1" aria-label="Zoom de la photo"><span aria-hidden="true">+</span></div>
+      <p class="hint">Fais glisser la photo pour placer le visage dans le cercle. Zoome avec le curseur, ou avec deux doigts.</p></div>
     <p class="note" id="${p}-err" hidden></p>
     <div class="btns" style="margin-top:8px"><button class="btn" id="${p}-save">${quick ? "Créer et inscrire" : "Enregistrer le profil"}</button><button class="btn ghost" id="${p}-cancel" hidden>Annuler la modification</button></div>`;
-  let file = null, editing = null;
-  $(`${p}-file`).addEventListener("change", e => { file = e.target.files[0] || null; if (file) $(`${p}-prev`).innerHTML = `<img class="av lg" src="${URL.createObjectURL(file)}" alt="">`; });
+  let crop = null, editing = null;
+  const cv = $(`${p}-cv`), zm = $(`${p}-zoom`);
+  const clampC = () => { const w = crop.img.naturalWidth, h = crop.img.naturalHeight; crop.side = Math.min(crop.base / crop.zoom, w, h);
+    crop.cx = Math.max(crop.side / 2, Math.min(w - crop.side / 2, crop.cx)); crop.cy = Math.max(crop.side / 2, Math.min(h - crop.side / 2, crop.cy)); };
+  const draw = () => { if (!crop) return; clampC(); const g = cv.getContext("2d"), W = cv.width; g.imageSmoothingQuality = "high";
+    g.clearRect(0, 0, W, W); g.drawImage(crop.img, crop.cx - crop.side / 2, crop.cy - crop.side / 2, crop.side, crop.side, 0, 0, W, W);
+    g.save(); g.fillStyle = "rgba(0,0,0,.55)"; g.beginPath(); g.rect(0, 0, W, W); g.arc(W / 2, W / 2, W / 2 - 4, 0, Math.PI * 2, true); g.fill("evenodd");
+    g.strokeStyle = "#c45cff"; g.lineWidth = 4; g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 4, 0, Math.PI * 2); g.stroke(); g.restore();
+    const pv = document.createElement("canvas"); pv.width = pv.height = 160; pv.getContext("2d").drawImage(crop.img, crop.cx - crop.side / 2, crop.cy - crop.side / 2, crop.side, crop.side, 0, 0, 160, 160);
+    $(`${p}-prev`).innerHTML = `<img class="av lg" src="${pv.toDataURL("image/jpeg", .8)}" alt="">`; };
+  const startCrop = async src => {
+    try { const img = await loadImg(src), b = Math.min(img.naturalWidth, img.naturalHeight);
+      crop = { img, base: b, zoom: 1, side: b, cx: img.naturalWidth / 2, cy: img.naturalHeight / 2 }; zm.value = 1; $(`${p}-crop`).hidden = false; $(`${p}-recrop`).hidden = true; draw(); }
+    catch (e) { crop = null; const err = $(`${p}-err`); err.textContent = "La photo n'a pas pu être lue. Essaie une image JPG ou PNG."; err.hidden = false; }
+  };
+  $(`${p}-file`).addEventListener("change", e => { const f = e.target.files[0]; if (f) { $(`${p}-err`).hidden = true; startCrop(URL.createObjectURL(f)); } });
+  $(`${p}-recrop`).addEventListener("click", () => { const pr = editing && Store.P[editing], src = photoSrc(pr); if (src) startCrop(src); });
+  zm.addEventListener("input", () => { if (!crop) return; crop.zoom = num(zm.value, 1); draw(); });
+  // glisser pour déplacer, deux doigts pour zoomer
+  const pts = new Map(); let pinch = null;
+  cv.addEventListener("pointerdown", e => { if (!crop) return; e.preventDefault(); cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: crop.zoom }; } });
+  cv.addEventListener("pointermove", e => { if (!crop || !pts.has(e.pointerId)) return; const last = pts.get(e.pointerId), now = { x: e.clientX, y: e.clientY }; pts.set(e.pointerId, now);
+    if (pts.size >= 2 && pinch) { const [a, b] = [...pts.values()]; crop.zoom = Math.max(1, Math.min(5, pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / Math.max(1, pinch.d))); zm.value = crop.zoom; }
+    else { const k = crop.side / cv.getBoundingClientRect().width; crop.cx -= (now.x - last.x) * k; crop.cy -= (now.y - last.y) * k; }
+    draw(); });
+  const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch = null; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", e => { if (!crop) return; e.preventDefault(); crop.zoom = Math.max(1, Math.min(5, crop.zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08))); zm.value = crop.zoom; draw(); }, { passive: false });
   const label = () => quick ? "Créer et inscrire" : "Enregistrer le profil";
-  const reset = () => { editing = null; file = null; $(`${p}-pseudo`).value = ""; $(`${p}-phrase`).value = ""; $(`${p}-file`).value = ""; $(`${p}-prev`).innerHTML = avatar(null, "lg"); $(`${p}-cancel`).hidden = true; $(`${p}-err`).hidden = true; if (!quick) $("pf-title").textContent = "Nouveau profil"; };
+  const reset = () => { editing = null; crop = null; $(`${p}-crop`).hidden = true; $(`${p}-recrop`).hidden = true; $(`${p}-pseudo`).value = ""; $(`${p}-phrase`).value = ""; $(`${p}-file`).value = ""; $(`${p}-prev`).innerHTML = avatar(null, "lg"); $(`${p}-cancel`).hidden = true; $(`${p}-err`).hidden = true; if (!quick) $("pf-title").textContent = "Nouveau profil"; };
   $(`${p}-cancel`).addEventListener("click", reset);
   $(`${p}-save`).addEventListener("click", async () => {
     const pseudo = $(`${p}-pseudo`).value.trim(), err = $(`${p}-err`);
@@ -2739,11 +2777,11 @@ function profileForm(host, { onSaved, quick }) {
     const dup = Object.values(Store.P).find(x => x.id !== editing && (x.pseudo || "").toLowerCase() === pseudo.toLowerCase());
     if (dup) { err.textContent = `Le pseudo « ${pseudo} » existe déjà.`; err.hidden = false; return; }
     const btn = $(`${p}-save`); btn.disabled = true; btn.textContent = "Enregistrement…";
-    try { const id = await saveProfile({ id: editing, pseudo, phrase: $(`${p}-phrase`).value.trim(), file }); reset(); onSaved && onSaved(id); }
+    try { const id = await saveProfile({ id: editing, pseudo, phrase: $(`${p}-phrase`).value.trim(), crop }); reset(); onSaved && onSaved(id); }
     catch (e) { err.textContent = "La photo n'a pas pu être lue. Essaie une image JPG ou PNG."; err.hidden = false; }
     btn.disabled = false; btn.textContent = label();
   });
-  return { edit(pr) { editing = pr.id; file = null; $(`${p}-pseudo`).value = pr.pseudo || ""; $(`${p}-phrase`).value = pr.phrase || ""; $(`${p}-prev`).innerHTML = avatar(pr, "lg"); $(`${p}-cancel`).hidden = false; $(`${p}-err`).hidden = true; $("pf-title").textContent = "Modifier " + (pr.pseudo || ""); $(`${p}-pseudo`).focus(); } };
+  return { edit(pr) { editing = pr.id; crop = null; $(`${p}-crop`).hidden = true; $(`${p}-recrop`).hidden = !photoSrc(pr); $(`${p}-pseudo`).value = pr.pseudo || ""; $(`${p}-phrase`).value = pr.phrase || ""; $(`${p}-prev`).innerHTML = avatar(pr, "lg"); $(`${p}-cancel`).hidden = false; $(`${p}-err`).hidden = true; $("pf-title").textContent = "Modifier " + (pr.pseudo || ""); $(`${p}-pseudo`).focus(); } };
 }
 
 function playerStats(pid) {
