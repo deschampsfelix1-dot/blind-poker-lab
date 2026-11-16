@@ -219,6 +219,25 @@ tr.cur td { background: var(--sunk); }
 .clock-full { position: fixed; inset: 0; z-index: 20; overflow: auto; border-radius: 0 !important; }
 
 /* jetons sur mesure */
+.chipfmt { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.chipstrip { display: flex; gap: 4px; flex-wrap: wrap; }
+.chipfmts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.chipfmts button { display: grid; gap: 4px; justify-items: start; text-align: left; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--sunk); color: var(--ink); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.chipfmts button .mini { display: flex; gap: 2px; }
+.chipfmts button:hover { border-color: var(--brass); }
+.chipfmts button[aria-checked="true"] { border-color: var(--felt); box-shadow: var(--glow); }
+.chipfmts button[aria-checked="true"]::after { content: "✓ en cours"; font-size: 11px; color: var(--felt); font-weight: 700; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+details.fold { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+details.fold > summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; list-style: none; display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before { content: "▸"; color: var(--brass); transition: transform .15s; }
+details.fold[open] > summary::before { transform: rotate(90deg); }
+details.fold > summary:hover { color: var(--ink); }
+.recalc { font-size: 13px; color: var(--muted); background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; }
+.recalc b { color: var(--ink); }
+.recalc.flash { animation: rcflash 1.2s ease-out; }
+@keyframes rcflash { 0% { border-color: var(--felt); box-shadow: var(--glow); } 100% { border-color: var(--line); box-shadow: none; } }
 .chiprow { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 6px 8px; align-items: end; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .chiprow .prev { grid-row: span 2; align-self: center; display: grid; place-items: center; }
 .chiprow [data-rm] { grid-row: span 2; align-self: center; }
@@ -767,17 +786,22 @@ body:has(.dash.clock-full) { overflow: hidden; }
       <label class="check"><input type="checkbox" id="f-antes"> Ante (big blind ante) à partir du niveau <input id="f-antefrom" type="number" min="1" step="1" style="width:64px" aria-label="Niveau de départ des antes"></label>
 
       <h3>Jeu de jetons</h3>
-      <p class="hint">Règle chaque jeton comme tes vrais jetons : valeur, couleur, liseré et forme. Plus bas, indique combien tu en possèdes pour vérifier que ta mallette suffit.</p>
+      <p class="hint" style="margin:0 0 6px">Choisis ton jeu de jetons : leurs valeurs, les blindes et le tapis se mettent à jour tout seuls.</p>
+      <div class="chipfmts" id="chipfmts" role="radiogroup" aria-label="Jeu de jetons"></div>
+      <div class="chipfmt"><span class="hint" style="margin:0">Tes jetons :</span><span class="chipstrip" id="chipstrip"></span></div>
+      <details class="fold" id="fold-chips"><summary>Modifier les jetons un par un (valeur, couleur, forme, quantités)</summary>
       <div id="chipedit"></div>
       <p class="note" id="chip-err" hidden></p>
       <div class="btns" style="margin-top:8px"><button class="btn ghost small" id="b-addchip">Ajouter un jeton</button><button class="btn ghost small" id="b-savekit">Garder ces jetons pour mes prochains tournois</button></div>
       <div id="owned" class="dist" style="margin-top:10px"></div>
+      </details>
 
       <h3>Blindes et tapis</h3>
+      <div class="recalc" id="recalc" aria-live="polite"></div>
       <div id="autofields"></div>
 
-      <h3>Pauses</h3>
-      <p class="hint">Une pause raccourcit le temps de jeu : le nombre de niveaux, le tapis ou la durée des niveaux se recalculent.</p>
+      <details class="fold" id="fold-pauses" open><summary>Pauses</summary>
+      <p class="hint">Une pause raccourcit le temps de jeu : le nombre de niveaux, le tapis ou la durée des niveaux se recalculent. Les pauses placées « toutes les X min » se replacent toutes seules quand tu changes la structure.</p>
       <div class="brkbar">
         <span>Une pause de</span><input id="f-brkmin" type="number" min="1" step="1" aria-label="Durée de chaque pause en minutes"><span>min toutes les</span>
         <input id="f-brkevery" type="number" min="10" step="5" aria-label="Intervalle entre deux pauses en minutes"><span>min de jeu</span>
@@ -786,11 +810,13 @@ body:has(.dash.clock-full) { overflow: hidden; }
       </div>
       <div class="btns" style="margin-top:8px"><button class="btn ghost small" id="b-addpause">Ajouter une pause à la main</button><button class="btn ghost small" id="b-clearpause">Retirer toutes les pauses</button></div>
       <div id="pauses" style="margin-top:8px"></div>
+      </details>
 
-      <h3>Réglages fins</h3>
+      <details class="fold" id="fold-fine"><summary>Réglages fins</summary>
       <div class="row"><label for="f-startdepth">Tapis de départ minimum<span>en grosses blindes du niveau 1, quand le tapis est en Auto</span></label><input id="f-startdepth" type="number" min="20" step="10"><span></span></div>
       <div class="row"><label for="f-enddepth">Fin de partie<span>grosses blindes en jeu au dernier niveau</span></label><input id="f-enddepth" type="number" min="5" step="1"><span></span></div>
       <div class="row"><label for="f-target">Niveaux visés<span>quand tapis et durée des niveaux sont en Auto</span></label><input id="f-target" type="number" min="4" step="1"><span></span></div>
+      </details>
     </div>
     <div style="min-width:0; display:grid; gap:20px">
       <div class="panel">
@@ -896,6 +922,21 @@ function chipSVG(c, px = 44) {
   const stripes = c.shape === "stripe" ? Array.from({ length: 8 }, (_, i) => `<rect x="44" y="1" width="12" height="15" fill="${acc}" transform="rotate(${i * 45} 50 50)"/>`).join("") : "";
   return `<svg class="chipsvg" viewBox="0 0 100 100" width="${px}" height="${px}" ${aria}><circle cx="50" cy="50" r="48" fill="${fill}"/>${stripes}<circle cx="50" cy="50" r="48" fill="none" stroke="${c.shape === "stripe" ? "rgba(0,0,0,.25)" : acc}" stroke-width="${c.shape === "stripe" ? 1 : 3}"/><circle cx="50" cy="50" r="33" fill="none" stroke="${acc}" stroke-width="2.5" ${c.shape === "stripe" ? 'stroke-dasharray="6 4"' : ""}/>${lab(50, 50)}</svg>`;
 }
+// formats de jetons prêts à l'emploi : changer de format remplace les valeurs (dans l'ordre) et recalcule tout
+const CHIP_FORMATS = [[1,5,10,25,100,500],[5,10,25,100,500,1000],[5,10,25,50,100,500],[25,50,100,500,1000,5000],[25,100,500,1000,5000,25000],[100,500,1000,5000,10000,25000]];
+const fmtLabel = vals => vals.map(v => v >= 1000 ? v / 1000 + "K" : v).join(" · ");
+function applyChipFormat(s, vals) {
+  const old = [...s.chipSet].sort((a, b) => a.v - b.v), oldSmall = old.length ? old[0].v : 1, f = vals[0] / oldSmall;
+  const owned = {};
+  s.chipSet = vals.map((v, i) => { const c = old[i]; if (c && s.owned[c.v] != null) owned[v] = s.owned[c.v];
+    return c ? Object.assign({}, c, { v, color: CHIP_COLORS[v] || c.color }) : chipFromValue(v, i); });
+  s.owned = owned;
+  // les montants fixés à la main suivent le changement d'échelle, arrondis à un multiple du nouveau plus petit jeton
+  ["stack","reentryChips","rebuyChips","addonChips"].forEach(k => { if (s.man[k] != null) s.man[k] = niceNumber(Math.max(vals[0] * 10, s.man[k] * f), vals[0]); });
+  delete s.man.sb0;
+  s.edits = {};
+  syncChips(s);
+}
 const chipOf = (s, v) => (s.chipSet || []).find(c => c.v === v) || { v, color: CHIP_COLORS[v] || "#888888", accent: "#ffffff", shape: "stripe" };
 function syncChips(s) {
   s.chipSet = s.chipSet.filter(c => c && c.v > 0).sort((a, b) => a.v - b.v);
@@ -917,7 +958,7 @@ const mmss = sec => { sec = Math.max(0, Math.ceil(sec)); const h = Math.floor(se
 const dateFr = iso => { if (!iso) return "–"; const d = new Date(iso); return isNaN(d) ? "–" : d.toLocaleDateString("fr-FR") + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
 const chipLabel = c => c >= 1000 ? c / 1000 + "K" : c;
 
-const CFG_KEYS = ["players","duration","perTable","chips","chipSet","owned","rebuy","reentry","addon","antes","anteFrom","bountyMode","bounty","pauses","every","brkEvery","brkMin","startDepth","endDepth","targetLevels","man","edits","pay"];
+const CFG_KEYS = ["players","duration","perTable","chips","chipSet","owned","rebuy","reentry","addon","antes","anteFrom","bountyMode","bounty","pauses","every","brkEvery","brkMin","startDepth","endDepth","targetLevels","man","edits","pay","brkAuto"];
 const newClock = () => ({ idx: 0, remaining: null, endsAt: null, running: false, elapsed: 0, alive: null, entries: null, rebuys: null, addons: null });
 const newTournament = () => ({
   id: uid(), createdAt: Date.now(), date: localISO(new Date()), status: "prep",
@@ -1209,7 +1250,10 @@ function compute(s) {
   const P = Math.max(2, Math.round(s.players));
   const totalMin = Math.max(15, s.duration * 60);
 
-  const sb0 = pick("sb0", small);
+  // petite blinde de départ : le plus petit jeton, ou, quand le tapis est fixé à la main, la plus grosse blinde qui laisse
+  // au moins « tapis de départ minimum » grosses blindes (5 000 jetons → 10/20 plutôt que 5/10)
+  const sbFor = st => { const want = st / (2 * Math.max(20, num(s.startDepth, 200))); let best = small; ladderFrom(small, small).forEach(v => { if (v <= want) best = v; }); return best; };
+  const sb0 = pick("sb0", man.stack != null ? sbFor(man.stack) : small);
   const ladder = ladderFrom(sb0, small);
   const reentries = s.reentry ? pick("reentries", Math.round(P * (s.rebuy ? 0.25 : 0.5))) : 0;
   const rebuys = s.rebuy ? pick("rebuys", P) : 0;
@@ -1223,11 +1267,14 @@ function compute(s) {
   const stackManual = man.stack != null;
   const chipsOf = (k, st) => man[k] != null ? man[k] : st;
   if (stackManual) {
-    // tapis fixé : les jetons en jeu donnent la blinde finale, donc le nombre de paliers, donc la durée des niveaux
+    // tapis fixé : la durée et les niveaux visés donnent la durée des niveaux ; les jetons en jeu donnent la blinde finale,
+    // et les blindes montent du départ jusqu'à cette blinde finale, réparties sur tous les niveaux
     stack = man.stack;
     const total0 = P * stack + reentries * chipsOf("reentryChips", stack) + rebuys * chipsOf("rebuyChips", stack) + addons * chipsOf("addonChips", stack);
-    steps = Math.max(2, nearestIdx(ladder, total0 / (2 * s.endDepth)) + 1);
-    levelMin = pick("levelMin", niceMinutes(Math.max(3, (totalMin - allPause) / steps)));
+    const wantSB = total0 / (2 * s.endDepth);
+    while (ladder[ladder.length - 1] < wantSB) ladder.push(ladder[ladder.length - 1] * 2);
+    steps = Math.max(2, nearestIdx(ladder, wantSB) + 1);
+    levelMin = pick("levelMin", niceMinutes(Math.max(3, (totalMin - allPause) / Math.max(2, s.targetLevels))));
     N = fitLevels(levelMin);
   } else {
     // tapis en auto : la durée donne le nombre de niveaux, la blinde finale donne les jetons en jeu, donc le tapis
@@ -1515,7 +1562,7 @@ function buildForm() {
   });
   const bind = (id, fn, ev = "input") => $(id).addEventListener(ev, e => { if (!S) return; fn(e.target); update(); });
   $("tname").addEventListener("input", e => { if (!S) return; S.name = e.target.value; save(); });
-  bind("f-players", t => { S.players = Math.max(2, num(t.value, S.players)); });
+  bind("f-players", t => { S.players = Math.max(2, num(t.value, S.players)); S.edits = {}; });
   bind("f-duration", t => { S.duration = Math.max(0.25, num(t.value, S.duration)); S.edits = {}; });
   bind("f-bmode", t => { S.bountyMode = t.value; });
   bind("f-table", t => { S.perTable = Math.max(2, num(t.value, 9)); });
@@ -1523,13 +1570,13 @@ function buildForm() {
   bind("f-antefrom", t => { S.anteFrom = Math.max(1, num(t.value, 1)); });
   bind("f-brkmin", t => { S.brkMin = Math.max(1, Math.round(num(t.value, 10))); });
   bind("f-brkevery", t => { S.brkEvery = Math.max(10, Math.round(num(t.value, 60))); });
-  document.querySelectorAll("[data-brk]").forEach(b => b.addEventListener("click", () => { if (!S) return; S.brkEvery = Number(b.dataset.brk); setVal("f-brkevery", S.brkEvery); placeBreaks(); update(); }));
-  $("b-brkapply").addEventListener("click", () => { if (!S) return; placeBreaks(); update(); });
-  $("b-clearpause").addEventListener("click", () => { if (!S) return; S.pauses = []; update(); });
-  bind("f-startdepth", t => { S.startDepth = Math.max(20, num(t.value, 200)); });
+  document.querySelectorAll("[data-brk]").forEach(b => b.addEventListener("click", () => { if (!S) return; S.brkEvery = Number(b.dataset.brk); setVal("f-brkevery", S.brkEvery); S.brkAuto = true; update(); }));
+  $("b-brkapply").addEventListener("click", () => { if (!S) return; S.brkAuto = true; update(); });
+  $("b-clearpause").addEventListener("click", () => { if (!S) return; S.pauses = []; S.brkAuto = false; update(); });
+  bind("f-startdepth", t => { S.startDepth = Math.max(20, num(t.value, 200)); S.edits = {}; });
   bind("f-enddepth", t => { S.endDepth = Math.max(5, num(t.value, 28)); S.edits = {}; });
   bind("f-target", t => { S.targetLevels = Math.max(4, num(t.value, 18)); S.edits = {}; });
-  $("b-addpause").addEventListener("click", () => { S.pauses.push({ after: Math.max(1, Math.round(R.N / 2)), min: 10 }); S.pauses.sort((a, b) => a.after - b.after); update(); });
+  $("b-addpause").addEventListener("click", () => { S.brkAuto = false; S.pauses.push({ after: Math.max(1, Math.round(R.N / 2)), min: 10 }); S.pauses.sort((a, b) => a.after - b.after); update(); });
   // pauses à intervalle de temps : on place chaque pause après le niveau qui finit au plus près de k × intervalle de jeu.
   // les pauses modifient parfois la durée des niveaux (mode auto), donc on recalcule jusqu'à stabilité.
   window.placeBreaks = (S0) => { const S = S0 || cur();
@@ -1616,6 +1663,18 @@ function renderStructure() {
   if ($("f-usereg")) $("f-usereg").onclick = () => { S.players = Math.max(2, reg); fillInputs(true); update(); };
 
   renderChipEditor();
+  const cur = r.chips.join(","), fi = CHIP_FORMATS.findIndex(v => v.join(",") === cur), sel = $("chipfmts");
+  const fsig = fi + "|" + cur;
+  if (sel.dataset.sig !== fsig) {
+    sel.innerHTML = CHIP_FORMATS.map((v, i) => `<button type="button" role="radio" aria-checked="${i === fi}" data-fmt="${i}"><span class="mini">${v.map((x, j) => chipSVG({ v: x, color: CHIP_COLORS[x] || PALETTE[j], accent: "#ffffff", shape: "stripe" }, 18)).join("")}</span><span>${fmtLabel(v)}</span></button>`).join("")
+      + (fi < 0 ? `<button type="button" role="radio" aria-checked="true" disabled><span class="mini">${r.chips.map(x => chipSVG(chipOf(S, x), 18)).join("")}</span><span>Mes jetons</span></button>` : "");
+    sel.dataset.sig = fsig;
+    sel.querySelectorAll("[data-fmt]").forEach(b => b.addEventListener("click", () => { applyChipFormat(S, CHIP_FORMATS[Number(b.dataset.fmt)]); update(); }));
+  }
+  $("chipstrip").innerHTML = [...S.chipSet].sort((a, b) => a.v - b.v).map(c => chipSVG(c, 30)).join("");
+  const rc = $("recalc"), pauses = r.levels.filter(l => l.kind === "pause");
+  const rtxt = `<b>${r.N} niveaux de ${r.levelMin} min</b>${pauses.length ? ` + ${pauses.length} pause${pauses.length > 1 ? "s" : ""}` : ""} · durée <b>${hm(r.endMin)}</b><br>Blindes <b>${fmt(r.levels[0].sb)}/${fmt(r.levels[0].bb)}</b> → <b>${fmt(r.lastBB / 2)}/${fmt(r.lastBB)}</b> · tapis <b>${fmt(r.stack)}</b> (${Math.round(r.stack / (2 * r.sb0))} BB) · ${r.P} joueurs`;
+  if (rc._t !== rtxt) { const had = rc._t != null && rc._id === S.id; rc._t = rtxt; rc._id = S.id; rc.innerHTML = rtxt; if (had) { rc.classList.remove("flash"); void rc.offsetWidth; rc.classList.add("flash"); } }
   const ob = $("owned"), sig = S.id + ":" + S.chipSet.map(c => [c.v, c.color, c.accent, c.shape].join("/")).join(",");
   if (ob.dataset.sig !== sig) {
     ob.innerHTML = r.chips.map(c => `<div>${chipSVG(chipOf(S, c), 30)}<label style="flex:1;font-size:13px">Possédés<input type="number" min="0" step="1" data-own="${c}" id="own-${c}" value="${S.owned[c] ?? ""}" placeholder="?"></label></div>`).join("");
@@ -1626,8 +1685,8 @@ function renderStructure() {
   document.querySelectorAll("[data-brk]").forEach(b => b.classList.toggle("on", Number(b.dataset.brk) === S.brkEvery));
   const brkAt = i => { const l = r.levels.find(x => x.kind === "pause" && x.pi === i); return l ? hm(l.start) : "–"; };
   $("pauses").innerHTML = S.pauses.length ? S.pauses.map((p, i) => `<div class="brkrow"><b>à ${brkAt(i)}</b><span>après le niveau</span><input type="number" min="1" step="1" value="${p.after}" data-p="${i}" data-f="after" aria-label="Pause après le niveau"><input type="number" min="1" step="1" value="${p.min}" data-p="${i}" data-f="min" aria-label="Durée de la pause en minutes"><span>min</span><button class="mode" data-del="${i}" aria-label="Supprimer la pause">✕</button></div>`).join("") : `<p class="hint">Aucune pause.</p>`;
-  $("pauses").querySelectorAll("input").forEach(i => i.addEventListener("change", e => { const p = S.pauses[e.target.dataset.p]; p[e.target.dataset.f] = Math.max(1, num(e.target.value, 1)); S.pauses.sort((a, b) => a.after - b.after); update(); }));
-  $("pauses").querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { S.pauses.splice(Number(b.dataset.del), 1); update(); }));
+  $("pauses").querySelectorAll("input").forEach(i => i.addEventListener("change", e => { const p = S.pauses[e.target.dataset.p]; S.brkAuto = false; p[e.target.dataset.f] = Math.max(1, num(e.target.value, 1)); S.pauses.sort((a, b) => a.after - b.after); update(); }));
+  $("pauses").querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => { S.brkAuto = false; S.pauses.splice(Number(b.dataset.del), 1); update(); }));
 
   $("warns").innerHTML = r.warns.map(w => `<div class="warn">${esc(w)}</div>`).join("");
   $("stats").innerHTML = [
@@ -2732,6 +2791,8 @@ document.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click",
 function update() {
   if (!S) return;
   syncChips(S); migrateKO(S); replayKO(S);
+  // pauses placées « toutes les X min » : elles suivent les niveaux quand la structure change
+  if (S.brkAuto && window.placeBreaks) placeBreaks(S);
   const was = R && R.levels[S.clock.idx];
   R = compute(S);
   // la structure a changé (pause ajoutée, niveaux recalculés) : l'horloge reste sur le même niveau ou la même pause
