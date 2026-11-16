@@ -172,6 +172,14 @@ tr.cur td { background: var(--sunk); }
 .tcard .big { font: 800 30px var(--display); font-variant-numeric: tabular-nums; }
 .tcard .meta { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 13px; }
 
+.zoom { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .88); display: grid; place-items: center; align-content: center; gap: 10px; padding: 16px; cursor: zoom-out; animation: zin .18s ease-out; }
+.zoom[hidden] { display: none; }
+.zoom figure { margin: 0; display: grid; justify-items: center; gap: 12px; }
+.zoom img { width: min(82vw, 72vh, 560px); height: min(82vw, 72vh, 560px); object-fit: cover; border-radius: 24px; border: 3px solid var(--felt); box-shadow: var(--glow), 0 20px 60px rgba(0, 0, 0, .6); }
+.zoom figcaption { font: 800 clamp(24px, 5vmin, 44px) var(--display); color: #fff; text-align: center; }
+.zoom-x { margin: 0; font-size: 13px; color: var(--muted); }
+@keyframes zin { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+.entry img.av, .pcard img.av, .pick img.av { cursor: zoom-in; }
 .av { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--felt); color: var(--felt-ink); display: inline-grid; place-items: center; font: 800 18px var(--display); flex: none; overflow: hidden; }
 .av.lg { width: 72px; height: 72px; font-size: 30px; }
 .av.out { filter: grayscale(1); opacity: .45; }
@@ -644,6 +652,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
   <div id="storenote"></div>
   <dialog id="sync-dlg" aria-labelledby="sync-title"><div class="sync-head"><h3 id="sync-title">Mémoire commune</h3><button class="btn ghost small" id="sync-close">Fermer</button></div><div id="sync-body"></div></dialog>
   <div class="podium-fx" id="podium" hidden role="dialog" aria-modal="true" aria-label="Podium du tournoi"></div>
+  <div class="zoom" id="zoom" hidden role="dialog" aria-modal="true" aria-label="Photo du joueur"><figure><img id="zoom-img" alt=""><figcaption id="zoom-name"></figcaption></figure><p class="zoom-x">Touche n'importe où pour fermer</p></div>
   <div class="mys" id="mys" hidden role="dialog" aria-modal="true" aria-labelledby="mys-t"><div class="mys-box"><p class="mys-t" id="mys-t">Mystery bounty</p><p class="mys-who" id="mys-who"></p><div class="wheel-wrap"><div class="wheel-pin"></div><div class="wheel" id="wheel"></div></div><p class="mys-res" id="mys-res" aria-live="assertive"></p><button class="btn" id="mys-ok" hidden>Continuer</button></div></div>
   <p id="loading" class="hint">Chargement de tes tournois…</p>
 
@@ -1232,7 +1241,7 @@ async function photoBlob(file) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    const size = 256, cv = document.createElement("canvas"); cv.width = cv.height = size;
+    const size = 400, cv = document.createElement("canvas"); cv.width = cv.height = size;
     const s = Math.min(img.naturalWidth, img.naturalHeight);
     cv.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, size, size);
     const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.85));
@@ -2541,6 +2550,17 @@ function renderMysPanel() {
 }
 let mysAnim = 0;
 // en plein écran (navigateur), seul le bloc mis en plein écran est affiché : on y place la roulette et le podium
+// toucher une photo de joueur (inscrits, profils, onglet Joueurs) l'affiche en grand
+document.addEventListener("click", e => {
+  const img = e.target.closest && e.target.closest(".entry img.av, .pcard img.av, .pick img.av");
+  if (!img) return;
+  e.preventDefault(); e.stopPropagation();
+  const card = img.closest(".entry, .pcard, .pick"), b = card && card.querySelector("b");
+  $("zoom-img").src = img.src; $("zoom-name").textContent = b ? b.textContent : "";
+  const z = $("zoom"); onTop(z); z.hidden = false;
+}, true);
+$("zoom").addEventListener("click", () => { $("zoom").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("zoom").hidden) $("zoom").hidden = true; });
 function onTop(el) { const host = document.fullscreenElement || document.body; if (el.parentNode !== host) host.appendChild(el); }
 document.addEventListener("fullscreenchange", () => ["mys", "podium"].forEach(id => { const el = $(id); if (el && !el.hidden) onTop(el); }));
 function runMystery() {
