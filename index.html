@@ -1440,6 +1440,10 @@ function payouts(s, r) {
     prizes[0] = Math.round((prizes[0] + pool - prizes.reduce((a, b) => a + b, 0)) * 100) / 100;
     if (!prizes.some((v, i) => v <= 0 && w[i] > 0 && pool > 0)) break;
   }
+  // répartition automatique : la dernière place payée récupère au moins sa mise (le buy-in), pris sur la 1re place
+  const minCash = s.pay.buyin;
+  if (!manual && places > 1 && minCash > 0 && pool >= minCash * places * 1.6)
+    for (let i = places - 1; i >= 1; i--) if (prizes[i] < minCash) { const d = minCash - prizes[i]; prizes[i] = minCash; prizes[0] = r2(prizes[0] - d); }
   return Object.assign({ pool, bountyPool, total: pool + bountyPool, places, autoPlaces, prizes, pct, pctManual: manual, pctSum: Math.round(pct.reduce((a, b) => a + b, 0) * 10) / 10 }, k);
 }
 const entryOf = (s, pid) => s.entries.find(e => e.pid === pid);
@@ -1546,17 +1550,19 @@ function migrateKO(s) {
     if (d.kos || d.cash || d.head) e.legacy = d; });
   replayKO(s);
 }
+// horodatage strictement croissant : deux actions dans la même milliseconde restent dans le bon ordre pour le calcul des primes
+const stamp = () => (stamp.t = Math.max(Date.now(), (stamp.t || 0) + 1));
 function eliminate(pid, byPid) {
   const x = entryOf(S, pid); if (!x || x.out != null) return;
   const alive = S.entries.filter(e => e.out == null).length;
-  x.out = alive; x.by = byPid || null; x.elim = { by: byPid || null }; x.outAt = Date.now();
+  x.out = alive; x.by = byPid || null; x.elim = { by: byPid || null }; x.outAt = stamp();
   drawMystery(S, x.elim, pid, byPid);
   replayKO(S);
   if (alive - 1 <= 1 && S.entries.length > 1) { const st = clockState(); S.status = "done"; S.clock.running = false; S.clock.remaining = st.rem; S.clock.endsAt = null; lockScreen(false); podiumPending = true; setTimeout(showPodium, 700); }
 }
 function rebuyKO(pid, byPid) {
   const x = entryOf(S, pid); if (!x) return;
-  const rec = { by: byPid || null, at: Date.now() };
+  const rec = { by: byPid || null, at: stamp() };
   x.rebuys = (x.rebuys || 0) + 1;
   x.rebuyLog = (x.rebuyLog || []).concat([rec]);
   x.lastKoAt = rec.at; x.lastKoBy = rec.by;
@@ -1572,10 +1578,12 @@ function undoRebuy(pid) {
 }
 function ledger(s, r) {
   const p = payouts(s, r), w = winnerOf(s), cashMode = s.bountyMode !== "none", mysRest = s.bountyMode === "mystery" && w ? mysDeck(s, r).rest : 0;
+  // primes sans gagnant (élimination sans « éliminé par ») : elles reviennent au vainqueur, pour que tout l'argent des primes soit redistribué
+  const orphan = cashMode && s.bountyMode !== "mystery" && w ? Math.max(0, r2(p.bountyPool - s.entries.reduce((a, e) => a + (e.cash || 0), 0) - w.bounty)) : 0;
   return s.entries.map(e => {
     const place = placeOf(s, e);
     const prize = place && place <= p.prizes.length ? p.prizes[place - 1] : 0;
-    const bounty = cashMode ? r2(e.cash + (e === w ? (s.bountyMode === "mystery" ? mysRest : e.bounty) : 0)) : 0; // le vainqueur garde sa propre prime (en mystery : les enveloppes restantes)
+    const bounty = cashMode ? r2(e.cash + (e === w ? (s.bountyMode === "mystery" ? mysRest : e.bounty + orphan) : 0)) : 0; // le vainqueur garde sa propre prime (en mystery : les enveloppes restantes)
     const paid = (1 + (e.reentries || 0)) * (s.pay.buyin + (s.bountyMode !== "none" ? s.bounty : 0)) + (e.rebuys || 0) * (s.pay.rebuy + (s.bountyMode !== "none" ? s.bounty : 0)) + (e.addons || 0) * s.pay.addon;
     return { e, pl: pOf(e.pid, s), place, kos: e.kos || 0, bounty, prize, total: bounty + prize, paid, head: e.out == null ? e.bounty : null };
   });
