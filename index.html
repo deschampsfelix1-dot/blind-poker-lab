@@ -800,6 +800,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
       <p class="hint" id="f-reg" hidden></p>
       <div class="row"><label for="f-duration">Durée prévue<span>en heures, pauses comprises</span></label><input id="f-duration" type="number" min="0.5" step="0.25"><span></span></div>
       <div class="row"><label for="f-table">Joueurs par table</label><input id="f-table" type="number" min="2" max="10" step="1"><span id="o-tables" class="hint" style="margin:0"></span></div>
+      <div class="row"><label for="f-final">Table finale<span>nombre de joueurs restants pour la former</span></label><input id="f-final" type="number" min="2" max="10" step="1"><span></span></div>
       <div class="row"><label for="f-bmode">Type</label><select id="f-bmode"><option value="none">Classique</option><option value="fixed">Bounty (KO)</option><option value="pko">Bounty progressif</option><option value="mystery">Mystery bounty</option></select><span></span></div>
       <label class="check"><input type="checkbox" id="f-rebuy"> Recave</label>
       <label class="check"><input type="checkbox" id="f-reentry"> Réentrée</label>
@@ -1000,11 +1001,11 @@ const mmss = sec => { sec = Math.max(0, Math.ceil(sec)); const h = Math.floor(se
 const dateFr = iso => { if (!iso) return "–"; const d = new Date(iso); return isNaN(d) ? "–" : d.toLocaleDateString("fr-FR") + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
 const chipLabel = c => c >= 1000 ? c / 1000 + "K" : c;
 
-const CFG_KEYS = ["players","duration","perTable","chips","chipSet","owned","rebuy","reentry","addon","antes","anteFrom","bountyMode","bounty","pauses","every","brkEvery","brkMin","startDepth","endDepth","targetLevels","man","edits","pay","brkAuto"];
+const CFG_KEYS = ["players","duration","perTable","finalTable","chips","chipSet","owned","rebuy","reentry","addon","antes","anteFrom","bountyMode","bounty","pauses","every","brkEvery","brkMin","startDepth","endDepth","targetLevels","man","edits","pay","brkAuto"];
 const newClock = () => ({ idx: 0, remaining: null, endsAt: null, running: false, elapsed: 0, alive: null, entries: null, rebuys: null, addons: null });
 const newTournament = () => ({
   id: uid(), createdAt: Date.now(), date: localISO(new Date()), status: "prep",
-  name: "Tournoi du vendredi", players: 8, duration: 4, perTable: 9,
+  name: "Tournoi du vendredi", players: 8, duration: 4, perTable: 7, finalTable: 7,
   chips: [5,10,25,100,500,1000], chipSet: defaultChipSet(), owned: {}, rebuy: false, reentry: false, addon: false, antes: false, anteFrom: 8,
   bountyMode: "none", bounty: 10,
   pauses: [], every: 6, brkEvery: 60, brkMin: 10, startDepth: 200, endDepth: 28, targetLevels: 18, man: {}, edits: {},
@@ -1019,6 +1020,7 @@ function normalize(t) {
   // passage aux jetons Royal : une seule fois, sauf pour les tournois déjà terminés
   if (hadSet && !t.royal && o.status !== "done") o.chipSet = o.chipSet.map(toRoyal);
   o.royal = true;
+  if (t && t.finalTable == null) o.finalTable = t.perTable || 9;
   if (!hadSet) o.chipSet = (Array.isArray(o.chips) && o.chips.length ? o.chips : [5,10,25,100,500,1000]).map(chipFromValue);
   o.chipSet = o.chipSet.map((c, i) => ({ id: String(c.id || uid() + i), v: Math.max(1, Math.round(num(c.v, 1))), color: okColor(c.color, "#888888"), accent: okColor(c.accent, "#ffffff"), inner: okColor(c.inner, mixHex(okColor(c.color, "#888888"), "#ffffff", .25)), shape: SHAPES.some(x => x[0] === c.shape) ? c.shape : "royal" }));
   syncChips(o);
@@ -1612,7 +1614,8 @@ function buildForm() {
   bind("f-players", t => { S.players = Math.max(2, num(t.value, S.players)); S.edits = {}; });
   bind("f-duration", t => { S.duration = Math.max(0.25, num(t.value, S.duration)); S.edits = {}; });
   bind("f-bmode", t => { S.bountyMode = t.value; });
-  bind("f-table", t => { S.perTable = Math.max(2, num(t.value, 9)); });
+  bind("f-table", t => { S.perTable = Math.max(2, Math.min(10, Math.round(num(t.value, 7)))); });
+  bind("f-final", t => { S.finalTable = Math.max(2, Math.min(10, Math.round(num(t.value, 7)))); });
   ["rebuy","reentry","addon","antes"].forEach(k => bind("f-" + k, t => { S[k] = t.checked; }, "change"));
   bind("f-antefrom", t => { S.anteFrom = Math.max(1, num(t.value, 1)); });
   bind("f-brkmin", t => { S.brkMin = Math.max(1, Math.round(num(t.value, 10))); });
@@ -1688,7 +1691,7 @@ function renderChipEditor() {
 function setVal(id, v) { const el = $(id); if (el && document.activeElement !== el && String(el.value) !== String(v)) el.value = v; }
 function fillInputs(force) {
   const f = (id, v) => { if (force) $(id).value = v; else setVal(id, v); };
-  f("tname", S.name); f("f-players", S.players); f("f-duration", S.duration); f("f-table", S.perTable); f("f-bmode", S.bountyMode);
+  f("tname", S.name); f("f-players", S.players); f("f-duration", S.duration); f("f-table", S.perTable); f("f-final", S.finalTable); f("f-bmode", S.bountyMode);
   ["rebuy","reentry","addon","antes"].forEach(k => $("f-" + k).checked = !!S[k]);
   f("f-antefrom", S.anteFrom); f("f-brkmin", S.brkMin); f("f-brkevery", S.brkEvery);
   f("f-startdepth", S.startDepth); f("f-enddepth", S.endDepth); f("f-target", S.targetLevels);
@@ -1704,7 +1707,7 @@ function renderStructure() {
     $("a-" + k).classList.toggle("auto", !isMan);
     const b = $("m-" + k); b.textContent = isMan ? "Manuel" : "Auto"; b.classList.toggle("is-auto", !isMan);
   });
-  $("o-tables").textContent = `${Math.ceil(r.P / S.perTable)} table(s)`;
+  $("o-tables").textContent = `${Math.ceil(r.P / perTableOf(S))} table(s)`;
   const reg = S.entries.length;
   $("f-reg").hidden = !reg || reg === S.players;
   $("f-reg").innerHTML = reg ? `${reg} joueur(s) inscrit(s). <button class="btn ghost small" id="f-usereg">Utiliser ce nombre</button>` : "";
@@ -1834,8 +1837,11 @@ function seatPlayers() {
   const n = Math.max(2, counts(S, R).alive || S.players); // personne d'inscrit : on numérote les joueurs
   return Array.from({ length: n }, (_, i) => ({ name: "Joueur " + (i + 1) }));
 }
+const perTableOf = s => Math.max(2, Math.min(10, s.perTable || 7));
+const finalOf = s => Math.max(2, Math.min(10, s.finalTable || s.perTable || 7));
 function drawSeats() {
-  const pl = shuffle(seatPlayers()), per = Math.max(2, Math.min(10, S.perTable || 9)), nt = Math.ceil(pl.length / per);
+  // tirage de la table finale : tout le monde à une seule table, même si elle compte plus de joueurs qu'une table normale
+  const pl = shuffle(seatPlayers()), per = S.seating && seatedReal(S.seating) && pl.length <= finalOf(S) && S.entries.some(e => e.out != null) ? Math.max(perTableOf(S), finalOf(S)) : perTableOf(S), nt = Math.ceil(pl.length / per);
   const tables = Array.from({ length: nt }, () => []);
   pl.forEach((p, i) => tables[i % nt].push(p)); // distribution en serpentin : les tables ont au plus un joueur d'écart
   S.seating = { at: Date.now(), cards: true, tables: tables.map(cardTable) };
@@ -1877,7 +1883,7 @@ function pruneSeating() {
 }
 function seatingPlan() {
   const st = S.seating; if (!seatedReal(st)) return null;
-  const alive = S.entries.filter(e => e.out == null).map(e => e.pid), A = new Set(alive), per = Math.max(2, Math.min(10, S.perTable || 9));
+  const alive = S.entries.filter(e => e.out == null).map(e => e.pid), A = new Set(alive), per = perTableOf(S), fin = finalOf(S);
   // 1. on retire les éliminés ; le bouton reste au même joueur, ou passe au suivant s'il est sorti
   let T = st.tables.map(t => {
     const n = t.seats.length, d = n ? t.dealer % n : 0; let nd = null;
@@ -1891,9 +1897,10 @@ function seatingPlan() {
   // joueurs revenus (re-entry) pas encore assis : table la moins pleine
   alive.filter(pid => !seated.has(pid)).forEach(pid => { const to = smallest(), pos = seatAt(to, { pid }); moves.push({ pid, from: null, to, pos, why: "arrive" }); });
   const n = alive.length;
-  if (T.length > 1 && n <= per) return { T, moves, final: true, changed: true };
+  if (T.length > 1 && n <= fin) return { T, moves, final: true, changed: true };
   // 2. casser des tables
-  while (T.length > 1 && T.length > Math.ceil(n / per)) {
+  // on garde au moins deux tables tant qu'on n'est pas au nombre de joueurs de la table finale
+  while (T.length > 1 && T.length > Math.max(Math.ceil(n / per), n > fin ? 2 : 1)) {
     const bi = T.length - 1, broken = T[bi]; T.splice(bi, 1);
     broken.seats.forEach(q => { const to = smallest(), pos = seatAt(to, q); moves.push({ pid: q.pid, from: bi, to, pos, why: "fermeture" }); });
   }
