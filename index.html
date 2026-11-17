@@ -325,6 +325,14 @@ svg.chipsvg { display: block; flex: none; overflow: visible; }
 .ptables { display: grid; gap: 28px 24px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
 .ptables.one { grid-template-columns: minmax(0, min(860px, 100%, calc((100vh - 230px) * 1.35))); justify-content: center; }
 .ptab { display: grid; gap: 8px; min-width: 0; }
+/* téléphone à l'horizontale : en-tête sur une ligne, la table prend toute la hauteur disponible */
+@media (orientation: landscape) and (max-height: 540px) {
+  .draw { padding: 8px 14px !important; padding-top: max(8px, env(safe-area-inset-top, 0px)) !important; gap: 4px; }
+  .draw-head h3 { font-size: 18px; } .draw-head p { font-size: 11px; margin: 0; } .draw-head .btn { padding: 6px 12px; font-size: 13px; min-height: 0; }
+  .ptables { gap: 8px 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+  .ptables.one { grid-template-columns: minmax(0, min(100%, calc((100vh - 56px) * 1.38))); }
+  .ptable { margin: 5% 2% 1%; }
+}
 .ptable { position: relative; aspect-ratio: 16 / 11; container-type: inline-size; margin: 8% 3% 2%; }
 .ptable .felt { position: absolute; inset: 19% 19%; border-radius: 999px; background: radial-gradient(ellipse at center, #3a1060 0%, #1c0730 62%, #12041f 100%);
   border: 7px solid #2a1340; box-shadow: 0 0 0 2px #b23cf5, 0 0 34px rgba(178, 60, 245, .45), inset 0 0 40px rgba(0, 0, 0, .6); display: grid; place-items: center; text-align: center; }
@@ -686,7 +694,7 @@ body:has(.dash.clock-full) { overflow: hidden; }
   <!-- CLASSEMENT -->
   <section id="view-classement" class="lb" hidden>
     <div class="lb-head"><h1><span class="goldbtn" aria-hidden="true">T</span>Classement</h1>
-      <div class="seg2" id="lb-period" role="group" aria-label="Période"><button data-per="all" aria-pressed="true">Depuis le début</button><button data-per="year">Cette année</button><button data-per="12m">12 derniers mois</button></div></div>
+      <div class="seg2" id="lb-period" role="group" aria-label="Période"><button data-per="all" aria-pressed="true">Depuis le début</button><button data-per="year">Cette année</button><button data-per="3m">3 derniers mois</button></div></div>
     <div id="lb-body"></div>
   </section>
 
@@ -2998,9 +3006,9 @@ function openTournament(id) {
 }
 /* ================= Classement ================= */
 const LB_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"]; // palette validée sur fond sombre
-let lbPer = "all", lbSort = "won", lbMetric = "net", lbSel = null, lbSlots = {};
+let lbPer = "all", lbSort = "net", lbMetric = "net", lbSel = null, lbSlots = {};
 function leaderData(per) {
-  const now = new Date(), from = per === "year" ? new Date(now.getFullYear(), 0, 1) : per === "12m" ? new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()) : null;
+  const now = new Date(), from = per === "year" ? new Date(now.getFullYear(), 0, 1) : per === "3m" ? new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()) : null;
   const ts = Object.values(Store.T).map(t => normalize(t)).filter(t => t.status === "done" && t.entries.length > 1)
     .filter(t => !from || new Date(t.date) >= from).sort((a, b) => String(a.date).localeCompare(String(b.date)) || a.createdAt - b.createdAt);
   const P = {}, tours = [];
@@ -3064,7 +3072,8 @@ function renderClassement() {
       <div class="seg2" id="lb-metric" role="group" aria-label="Mesure"><button data-m="net">Gains nets cumulés</button><button data-m="won">Gains cumulés</button></div></div>
       <p class="hint" style="margin:0 0 10px">Clique sur un joueur pour l'ajouter ou le retirer de la courbe (8 au maximum).</p>
       <div class="legend" id="lb-legend"></div><div class="chartwrap" id="lb-chart"></div></div>
-    <div class="panel"><h2>Classement général</h2><div class="tbl" style="margin-top:8px"><table class="pay lbt" id="lb-table"></table></div></div>
+    <div class="panel"><div class="lb-head" style="margin-bottom:8px"><h2 style="margin:0">Classement général</h2>
+      <div class="seg2" id="lb-rank" role="group" aria-label="Classer par"><button data-r="net">Gains nets cumulés</button><button data-r="won">Gains cumulés</button></div></div><div class="tbl" style="margin-top:8px"><table class="pay lbt" id="lb-table"></table></div></div>
     <div class="panel"><h2>Frise des vainqueurs</h2><div class="frise" id="lb-frise"></div></div>`;
   $("lb-frise").innerHTML = d.tours.slice().reverse().map(x => {
     const w = x.win; const pl = w ? w.pl : null;
@@ -3086,6 +3095,7 @@ function renderLbTable(d) {
     rows.map((o, i) => `<tr data-pid="${esc(o.pid)}" class="${lbSel.includes(o.pid) ? "sel" : ""}" style="--c:${lbColor(o.pid)}"><td class="rk">${i + 1}</td><td><span class="who">${avatar(o.pl)}${esc(o.pl.pseudo)}</span></td>
       <td><b>${eur(o.won)}</b></td><td class="${o.net > 0 ? "pos" : o.net < 0 ? "neg" : ""}">${signed(o.net)}</td><td>${o.wins}</td><td>${Math.round(o.itmPct * 100)} %</td><td>${o.kos}</td><td>${o.played}</td><td>${fmt2(Math.round(o.avgPlace * 10) / 10)}</td><td>${spark(o)}</td></tr>`).join("") + "</tbody>";
   $("lb-table").querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); lbSort = b.dataset.sort; renderLbTable(d); }));
+  document.querySelectorAll("#lb-rank button").forEach(b => { b.setAttribute("aria-pressed", String(b.dataset.r === lbSort)); b.onclick = () => { lbSort = b.dataset.r; renderLbTable(d); }; });
   $("lb-table").querySelectorAll("tr[data-pid]").forEach(tr => tr.addEventListener("click", () => lbToggle(tr.dataset.pid, d)));
 }
 function renderLbChart(d) {
